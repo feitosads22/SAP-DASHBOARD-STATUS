@@ -1,5 +1,5 @@
-```tsx
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Users,
   X,
-  CheckCircle2,
   Activity,
   Target,
   Clock3,
@@ -126,25 +125,20 @@ function App() {
   }, []);
 
   const healthy = projects.filter(
-    (project) =>
-      statusLabel(project.health_status) === "healthy"
+    (project) => statusLabel(project.health_status) === "healthy"
   ).length;
 
   const attention = projects.filter(
-    (project) =>
-      statusLabel(project.health_status) === "attention"
+    (project) => statusLabel(project.health_status) === "attention"
   ).length;
 
   const critical = projects.filter(
-    (project) =>
-      statusLabel(project.health_status) === "critical"
+    (project) => statusLabel(project.health_status) === "critical"
   ).length;
 
   return (
     <div className="app">
-      <aside
-        className={`sidebar ${menuOpen ? "open" : ""}`}
-      >
+      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
         <div className="brand">
           <div className="brand-mark">SAP</div>
 
@@ -164,42 +158,27 @@ function App() {
         </div>
 
         <nav>
-          <button
-            className="nav-item active"
-            type="button"
-          >
+          <button className="nav-item active" type="button">
             <LayoutDashboard size={18} />
             Portfolio
           </button>
 
-          <button
-            className="nav-item"
-            type="button"
-          >
+          <button className="nav-item" type="button">
             <CalendarDays size={18} />
             Cronograma
           </button>
 
-          <button
-            className="nav-item"
-            type="button"
-          >
+          <button className="nav-item" type="button">
             <ShieldAlert size={18} />
             RAID
           </button>
 
-          <button
-            className="nav-item"
-            type="button"
-          >
+          <button className="nav-item" type="button">
             <CircleDollarSign size={18} />
             Financeiro
           </button>
 
-          <button
-            className="nav-item"
-            type="button"
-          >
+          <button className="nav-item" type="button">
             <Users size={18} />
             Recursos
           </button>
@@ -207,23 +186,14 @@ function App() {
 
         <div className="sidebar-footer">
           <div className="connection">
-            <span
-              className={
-                connected
-                  ? "dot on"
-                  : "dot"
-              }
-            />
+            <span className={connected ? "dot on" : "dot"} />
 
             {connected
               ? "Supabase conectado"
               : "Configure o Supabase"}
           </div>
 
-          <button
-            className="nav-item"
-            type="button"
-          >
+          <button className="nav-item" type="button">
             <LogOut size={18} />
             Sair
           </button>
@@ -243,10 +213,7 @@ function App() {
             </button>
 
             <div>
-              <div className="eyebrow">
-                EXECUTIVE PORTFOLIO
-              </div>
-
+              <div className="eyebrow">EXECUTIVE PORTFOLIO</div>
               <h1>Visão geral</h1>
             </div>
           </div>
@@ -266,13 +233,10 @@ function App() {
             <AlertTriangle size={18} />
 
             <div>
-              <strong>
-                Conexão ainda não configurada.
-              </strong>
+              <strong>Conexão ainda não configurada.</strong>
 
               <span>
-                Configure as variáveis do projeto
-                Supabase na Vercel.
+                Configure as variáveis do projeto Supabase na Vercel.
               </span>
             </div>
           </div>
@@ -284,20 +248,16 @@ function App() {
               <h2>Portfolio SAP</h2>
 
               <p>
-                Acompanhe a saúde dos projetos
-                em um único lugar.
+                Acompanhe a saúde dos projetos em um único lugar.
               </p>
             </div>
 
             <div className="date">
-              {new Date().toLocaleDateString(
-                "pt-BR",
-                {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                }
-              )}
+              {new Date().toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "long",
+                year: "numeric",
+              })}
             </div>
           </div>
 
@@ -336,8 +296,8 @@ function App() {
                 <h3>Projetos</h3>
 
                 <p>
-                  Selecione um projeto para abrir
-                  a visão executiva detalhada.
+                  Selecione um projeto para abrir a visão executiva
+                  detalhada.
                 </p>
               </div>
 
@@ -348,13 +308,10 @@ function App() {
 
             <div className="table-wrap">
               {loading ? (
-                <div className="empty">
-                  Carregando portfolio...
-                </div>
+                <div className="empty">Carregando portfolio...</div>
               ) : projects.length === 0 ? (
                 <div className="empty">
-                  Nenhum projeto encontrado
-                  no dashboard.
+                  Nenhum projeto encontrado no dashboard.
                 </div>
               ) : (
                 <table>
@@ -372,49 +329,33 @@ function App() {
 
                   <tbody>
                     {projects.map((project) => {
-                      const status =
-                        statusLabel(
-                          project.health_status
-                        );
+                      const status = statusLabel(
+                        project.health_status
+                      );
 
-                      const progress =
-                        Math.min(
-                          100,
-                          Math.max(
-                            0,
-                            Number(
-                              project.progress ?? 0
-                            )
-                          )
-                        );
+                      const progress = Math.min(
+                        100,
+                        Math.max(
+                          0,
+                          Number(project.progress ?? 0)
+                        )
+                      );
 
                       const raid =
-                        Number(
-                          project.critical_risks ?? 0
-                        ) +
-                        Number(
-                          project.open_issues ?? 0
-                        ) +
-                        Number(
-                          project.overdue_actions ?? 0
-                        );
+                        Number(project.critical_risks ?? 0) +
+                        Number(project.open_issues ?? 0) +
+                        Number(project.overdue_actions ?? 0);
 
                       return (
                         <tr
                           key={project.id}
-                          onClick={() =>
-                            setSelected(project)
-                          }
+                          onClick={() => setSelected(project)}
                         >
                           <td>
                             <div className="project">
-                              <strong>
-                                {project.code}
-                              </strong>
+                              <strong>{project.code}</strong>
 
-                              <span>
-                                {project.name}
-                              </span>
+                              <span>{project.name}</span>
                             </div>
                           </td>
 
@@ -426,8 +367,7 @@ function App() {
 
                               {Math.round(
                                 Number(
-                                  project.health_score ??
-                                    0
+                                  project.health_score ?? 0
                                 )
                               )}
                             </span>
@@ -436,10 +376,7 @@ function App() {
                           <td>
                             <div className="progress">
                               <span>
-                                {Math.round(
-                                  progress
-                                )}
-                                %
+                                {Math.round(progress)}%
                               </span>
 
                               <div>
@@ -455,14 +392,11 @@ function App() {
                           <td>
                             {project.spi == null
                               ? "—"
-                              : Number(
-                                  project.spi
-                                ).toFixed(2)}
+                              : Number(project.spi).toFixed(2)}
                           </td>
 
                           <td>
-                            {project.days_to_go_live ==
-                            null
+                            {project.days_to_go_live == null
                               ? "—"
                               : `${Math.round(
                                   Number(
@@ -472,15 +406,11 @@ function App() {
                           </td>
 
                           <td>
-                            <span className="raid">
-                              {raid}
-                            </span>
+                            <span className="raid">{raid}</span>
                           </td>
 
                           <td>
-                            <ChevronRight
-                              size={18}
-                            />
+                            <ChevronRight size={18} />
                           </td>
                         </tr>
                       );
@@ -496,9 +426,7 @@ function App() {
       {selected && (
         <ProjectDetail
           project={selected}
-          onClose={() =>
-            setSelected(null)
-          }
+          onClose={() => setSelected(null)}
         />
       )}
     </div>
@@ -520,9 +448,7 @@ function Kpi({
     <div className="kpi">
       <span>{title}</span>
 
-      <strong className={tone || ""}>
-        {value}
-      </strong>
+      <strong className={tone || ""}>{value}</strong>
 
       <small>{subtitle}</small>
     </div>
@@ -536,9 +462,7 @@ function ProjectDetail({
   project: Project;
   onClose: () => void;
 }) {
-  const status = statusLabel(
-    project.health_status
-  );
+  const status = statusLabel(project.health_status);
 
   const health = Math.round(
     Number(project.health_score ?? 0)
@@ -546,10 +470,7 @@ function ProjectDetail({
 
   const progress = Math.min(
     100,
-    Math.max(
-      0,
-      Number(project.progress ?? 0)
-    )
+    Math.max(0, Number(project.progress ?? 0))
   );
 
   const criticalRisks = Number(
@@ -569,15 +490,16 @@ function ProjectDetail({
     openIssues +
     overdueActions;
 
-  const currentStatus =
-    statusText(project.health_status);
+  const currentStatus = statusText(
+    project.health_status
+  );
 
   const healthDescription =
     status === "critical"
       ? "O projeto apresenta indicadores que exigem atuação executiva."
       : status === "attention"
-      ? "O projeto apresenta pontos de atenção que devem ser acompanhados."
-      : "O projeto está dentro dos indicadores esperados.";
+        ? "O projeto apresenta pontos de atenção que devem ser acompanhados."
+        : "O projeto está dentro dos indicadores esperados.";
 
   return (
     <div
@@ -586,12 +508,8 @@ function ProjectDetail({
     >
       <aside
         className="drawer executive-drawer"
-        onClick={(event) =>
-          event.stopPropagation()
-        }
+        onClick={(event) => event.stopPropagation()}
       >
-        {/* HEADER */}
-
         <div className="drawer-head">
           <div>
             <div className="eyebrow">
@@ -613,8 +531,6 @@ function ProjectDetail({
           </button>
         </div>
 
-        {/* HEALTH */}
-
         <section
           className={`executive-health ${status}`}
         >
@@ -635,20 +551,14 @@ function ProjectDetail({
           <div className="health-status">
             <span className="health-status-dot" />
 
-            <strong>
-              {currentStatus}
-            </strong>
+            <strong>{currentStatus}</strong>
           </div>
         </section>
-
-        {/* KPIS */}
 
         <section className="executive-kpis">
           <ExecutiveMetric
             label="Progresso"
-            value={`${Math.round(
-              progress
-            )}%`}
+            value={`${Math.round(progress)}%`}
             highlight
           />
 
@@ -657,36 +567,26 @@ function ProjectDetail({
             value={
               project.spi == null
                 ? "—"
-                : Number(
-                    project.spi
-                  ).toFixed(2)
+                : Number(project.spi).toFixed(2)
             }
           />
 
           <ExecutiveMetric
             label="Go-Live"
             value={
-              project.days_to_go_live ==
-              null
+              project.days_to_go_live == null
                 ? "—"
                 : `${Math.round(
-                    Number(
-                      project.days_to_go_live
-                    )
+                    Number(project.days_to_go_live)
                   )}d`
             }
           />
 
           <ExecutiveMetric
             label="Fase atual"
-            value={
-              project.current_phase ||
-              "—"
-            }
+            value={project.current_phase || "—"}
           />
         </section>
-
-        {/* EXECUTIVE SUMMARY */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -695,9 +595,7 @@ function ProjectDetail({
                 EXECUTIVE SUMMARY
               </span>
 
-              <h3>
-                Leitura executiva
-              </h3>
+              <h3>Leitura executiva</h3>
             </div>
           </div>
 
@@ -707,30 +605,24 @@ function ProjectDetail({
             <div className="reading-icon">
               {status === "critical"
                 ? "!"
-                : status ===
-                  "attention"
-                ? "!"
-                : "✓"}
+                : status === "attention"
+                  ? "!"
+                  : "✓"}
             </div>
 
             <div>
               <strong>
                 {status === "critical"
                   ? "Ação executiva requerida"
-                  : status ===
-                    "attention"
-                  ? "Acompanhamento necessário"
-                  : "Projeto sob controle"}
+                  : status === "attention"
+                    ? "Acompanhamento necessário"
+                    : "Projeto sob controle"}
               </strong>
 
-              <p>
-                {healthDescription}
-              </p>
+              <p>{healthDescription}</p>
             </div>
           </div>
         </section>
-
-        {/* HEALTH DRIVERS */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -739,9 +631,7 @@ function ProjectDetail({
                 HEALTH DRIVERS
               </span>
 
-              <h3>
-                Por que este Health?
-              </h3>
+              <h3>Por que este Health?</h3>
             </div>
           </div>
 
@@ -788,8 +678,6 @@ function ProjectDetail({
           </div>
         </section>
 
-        {/* DELIVERY */}
-
         <section className="executive-section">
           <div className="section-title">
             <div>
@@ -797,16 +685,11 @@ function ProjectDetail({
                 DELIVERY
               </span>
 
-              <h3>
-                Progresso do projeto
-              </h3>
+              <h3>Progresso do projeto</h3>
             </div>
 
             <strong className="section-value">
-              {Math.round(
-                progress
-              )}
-              %
+              {Math.round(progress)}%
             </strong>
           </div>
 
@@ -821,21 +704,12 @@ function ProjectDetail({
             </div>
 
             <div className="progress-caption">
-              <span>
-                Realizado
-              </span>
+              <span>Realizado</span>
 
-              <span>
-                {Math.round(
-                  progress
-                )}
-                %
-              </span>
+              <span>{Math.round(progress)}%</span>
             </div>
           </div>
         </section>
-
-        {/* CRONOGRAMA */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -844,9 +718,7 @@ function ProjectDetail({
                 SCHEDULE
               </span>
 
-              <h3>
-                Cronograma
-              </h3>
+              <h3>Cronograma</h3>
             </div>
           </div>
 
@@ -855,13 +727,11 @@ function ProjectDetail({
 
             <div>
               <strong>
-                Indicadores de
-                cronograma
+                Indicadores de cronograma
               </strong>
 
               <span>
-                Dados detalhados serão
-                conectados ao módulo
+                Dados detalhados serão conectados ao módulo
                 de cronograma.
               </span>
             </div>
@@ -871,23 +741,15 @@ function ProjectDetail({
 
           <div className="schedule-summary">
             <div>
-              <span>
-                Planejado
-              </span>
-
+              <span>Planejado</span>
               <strong>—</strong>
             </div>
 
             <div>
-              <span>
-                Realizado
-              </span>
+              <span>Realizado</span>
 
               <strong>
-                {Math.round(
-                  progress
-                )}
-                %
+                {Math.round(progress)}%
               </strong>
             </div>
 
@@ -895,18 +757,13 @@ function ProjectDetail({
               <span>SPI</span>
 
               <strong>
-                {project.spi ==
-                null
+                {project.spi == null
                   ? "—"
-                  : Number(
-                      project.spi
-                    ).toFixed(2)}
+                  : Number(project.spi).toFixed(2)}
               </strong>
             </div>
           </div>
         </section>
-
-        {/* RAID */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -927,45 +784,31 @@ function ProjectDetail({
             <RaidCard
               label="Riscos"
               value={criticalRisks}
-              icon={
-                <ShieldAlert
-                  size={18}
-                />
-              }
+              icon={<ShieldAlert size={18} />}
               tone="critical"
             />
 
             <RaidCard
               label="Issues"
               value={openIssues}
-              icon={
-                <AlertTriangle
-                  size={18}
-                />
-              }
+              icon={<AlertTriangle size={18} />}
               tone="attention"
             />
 
             <RaidCard
               label="Ações"
               value={overdueActions}
-              icon={
-                <Clock3 size={18} />
-              }
+              icon={<Clock3 size={18} />}
               tone="attention"
             />
 
             <RaidCard
               label="Decisões"
               value="—"
-              icon={
-                <Target size={18} />
-              }
+              icon={<Target size={18} />}
             />
           </div>
         </section>
-
-        {/* FINANCEIRO */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -974,9 +817,7 @@ function ProjectDetail({
                 FINANCIAL
               </span>
 
-              <h3>
-                Financeiro
-              </h3>
+              <h3>Financeiro</h3>
             </div>
           </div>
 
@@ -1003,19 +844,14 @@ function ProjectDetail({
           </div>
 
           <div className="placeholder-note">
-            <CircleDollarSign
-              size={18}
-            />
+            <CircleDollarSign size={18} />
 
             <span>
-              Indicadores financeiros
-              serão conectados ao
+              Indicadores financeiros serão conectados ao
               módulo Financeiro.
             </span>
           </div>
         </section>
-
-        {/* RECURSOS */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -1024,9 +860,7 @@ function ProjectDetail({
                 PEOPLE
               </span>
 
-              <h3>
-                Recursos
-              </h3>
+              <h3>Recursos</h3>
             </div>
           </div>
 
@@ -1056,14 +890,11 @@ function ProjectDetail({
             <Users size={18} />
 
             <span>
-              Dados de recursos
-              serão conectados ao
-              módulo de Recursos.
+              Dados de recursos serão conectados ao módulo
+              de Recursos.
             </span>
           </div>
         </section>
-
-        {/* MARCOS */}
 
         <section className="executive-section">
           <div className="section-title">
@@ -1072,55 +903,42 @@ function ProjectDetail({
                 MILESTONES
               </span>
 
-              <h3>
-                Próximos marcos
-              </h3>
+              <h3>Próximos marcos</h3>
             </div>
           </div>
 
           <div className="milestone-empty">
-            <CalendarDays
-              size={22}
-            />
+            <CalendarDays size={22} />
 
             <strong>
               Nenhum marco disponível
             </strong>
 
             <span>
-              Os próximos marcos serão
-              apresentados quando o
-              módulo de cronograma
-              estiver conectado.
+              Os próximos marcos serão apresentados quando
+              o módulo de cronograma estiver conectado.
             </span>
           </div>
         </section>
-
-        {/* INFORMAÇÕES */}
 
         <section className="executive-section project-info">
           <div>
             <span>Projeto</span>
 
-            <strong>
-              {project.code}
-            </strong>
+            <strong>{project.code}</strong>
           </div>
 
           <div>
             <span>Status</span>
 
-            <strong>
-              {currentStatus}
-            </strong>
+            <strong>{currentStatus}</strong>
           </div>
 
           <div>
             <span>Fase</span>
 
             <strong>
-              {project.current_phase ||
-                "—"}
+              {project.current_phase || "—"}
             </strong>
           </div>
 
@@ -1128,26 +946,18 @@ function ProjectDetail({
             <span>Go-Live</span>
 
             <strong>
-              {project.days_to_go_live ==
-              null
+              {project.days_to_go_live == null
                 ? "—"
                 : `${Math.round(
-                    Number(
-                      project.days_to_go_live
-                    )
+                    Number(project.days_to_go_live)
                   )} dias`}
             </strong>
           </div>
         </section>
 
-        {/* FOOTER */}
-
         <div className="drawer-footer">
           <span>
-            <Activity
-              size={14}
-            />
-
+            <Activity size={14} />
             Executive Project View
           </span>
 
@@ -1196,9 +1006,7 @@ function Driver({
   tone: string;
 }) {
   return (
-    <div
-      className={`driver ${tone}`}
-    >
+    <div className={`driver ${tone}`}>
       <div className="driver-value">
         {value}
       </div>
@@ -1216,13 +1024,11 @@ function RaidCard({
 }: {
   label: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon: ReactNode;
   tone?: string;
 }) {
   return (
-    <div
-      className={`raid-card ${tone}`}
-    >
+    <div className={`raid-card ${tone}`}>
       <div className="raid-card-icon">
         {icon}
       </div>
@@ -1237,4 +1043,3 @@ function RaidCard({
 }
 
 export default App;
-```
