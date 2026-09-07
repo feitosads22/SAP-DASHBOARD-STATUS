@@ -30,6 +30,7 @@ import {
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import Cronograma from "./Cronograma";
+import RAID from "./RAID";
 
 type Project = {
   id: string;
@@ -274,19 +275,7 @@ function App() {
         )}
 
         {module === "raid" && (
-          <ModulePage
-            title="RAID"
-            kicker="GOVERNANCE CONTROL"
-            description="Riscos, Issues, Ações, Decisões e Dependências por projeto."
-            icon={<ShieldAlert size={22} />}
-            cards={[
-              ["Riscos críticos", sum(projects, "critical_risks")],
-              ["Issues abertas", sum(projects, "open_issues")],
-              ["Ações atrasadas", sum(projects, "overdue_actions")],
-              ["Projetos críticos", critical],
-            ]}
-            note="A estrutura RAID já está criada no Supabase. O próximo passo é conectar os registros individuais ao CRUD."
-          />
+          <RAID projects={projects.map((project) => ({ id: project.id, code: project.code, name: project.name }))} />
         )}
 
         {module === "financial" && (
