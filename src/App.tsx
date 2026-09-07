@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
+import Cronograma from "./Cronograma";
 
 type Project = {
   id: string;
@@ -269,19 +270,7 @@ function App() {
         )}
 
         {module === "schedule" && (
-          <ModulePage
-            title="Cronograma"
-            kicker="DELIVERY MANAGEMENT"
-            description="Planejado, realizado, SPI, Go-Live e próximos marcos dos projetos."
-            icon={<CalendarDays size={22} />}
-            cards={[
-              ["Projetos monitorados", projects.length],
-              ["SPI médio", average(projects.map((p) => Number(p.spi)).filter(Number.isFinite)).toFixed(2)],
-              ["Progresso médio", `${Math.round(average(projects.map((p) => Number(p.progress ?? 0))))}%`],
-              ["Go-Live médio", `${Math.round(average(projects.map((p) => Number(p.days_to_go_live)).filter(Number.isFinite)))}d`],
-            ]}
-            note="A estrutura de cronograma já está criada no Supabase. O próximo passo é cadastrar as linhas de planejamento e marcos."
-          />
+          <Cronograma projects={projects} />
         )}
 
         {module === "raid" && (
