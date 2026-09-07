@@ -69,8 +69,7 @@ function statusLabel(status?: string) {
 
   if (
     s.includes("critical") ||
-    s.includes("red") ||
-    s.includes("critical")
+    s.includes("red")
   ) {
     return "critical";
   }
@@ -104,30 +103,50 @@ function roleLabel(role?: string) {
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
 
-  const [authLoading, setAuthLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [profileError, setProfileError] = useState("");
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [authLoading, setAuthLoading] =
+    useState(true);
 
-  const [selected, setSelected] = useState<Project | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileLoading, setProfileLoading] =
+    useState(false);
 
-  const [connected, setConnected] = useState(false);
+  const [profileError, setProfileError] =
+    useState("");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [projects, setProjects] =
+    useState<Project[]>([]);
 
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
+  const [loading, setLoading] =
+    useState(false);
+
+  const [selected, setSelected] =
+    useState<Project | null>(null);
+
+  const [menuOpen, setMenuOpen] =
+    useState(false);
+
+  const [connected, setConnected] =
+    useState(false);
+
+  const [email, setEmail] =
+    useState("");
+
+  const [password, setPassword] =
+    useState("");
+
+  const [loginLoading, setLoginLoading] =
+    useState(false);
+
+  const [loginError, setLoginError] =
+    useState("");
 
   /*
-   * ---------------------------------------------------------
-   * AUTH
-   * ---------------------------------------------------------
+   * =========================================================
+   * AUTHENTICATION
+   * =========================================================
    */
 
   useEffect(() => {
@@ -139,17 +158,30 @@ function App() {
     let mounted = true;
 
     async function initializeAuth() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
-      if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
-      setSession(session);
-      setAuthLoading(false);
+        setSession(session);
+        setAuthLoading(false);
 
-      if (session?.user) {
-        await loadProfile(session.user.id);
+        if (session?.user) {
+          await loadProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error(
+          "Erro ao inicializar autenticação:",
+          error
+        );
+
+        if (mounted) {
+          setAuthLoading(false);
+        }
       }
     }
 
@@ -159,7 +191,9 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         setSession(session);
 
@@ -168,6 +202,7 @@ function App() {
         } else {
           setProfile(null);
           setProjects([]);
+          setProfileError("");
         }
       }
     );
@@ -179,48 +214,88 @@ function App() {
   }, []);
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * PROFILE
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   async function loadProfile(userId: string) {
     setProfileLoading(true);
+    setProfileError("");
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(
-        "id, full_name, email, role, organization_id, active"
-      )
-      .eq("id", userId)
-      .single();
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("profiles")
+        .select(
+          `
+            id,
+            full_name,
+            email,
+            role,
+            organization_id,
+            active
+          `
+        )
+        .eq("id", userId)
+        .single();
 
-  if (error) {
-  console.error("Erro ao carregar profile:", error);
+      if (error) {
+        console.error(
+          "Erro ao carregar profile:",
+          error
+        );
 
-  setProfile(null);
-  setProfileError(
-    error.message || "Não foi possível carregar seu perfil."
-  );
+        setProfile(null);
 
-  setProfileLoading(false);
-  return;
-  }
+        setProfileError(
+          error.message ||
+            "Não foi possível carregar seu perfil."
+        );
 
-setProfileError("");
+        setProfileLoading(false);
+        return;
+      }
 
-    setProfile(data as Profile);
-    setProfileLoading(false);
+      if (!data) {
+        setProfile(null);
 
-    if (data?.active) {
-      await loadProjects();
+        setProfileError(
+          "Seu usuário não possui um perfil cadastrado."
+        );
+
+        setProfileLoading(false);
+        return;
+      }
+
+      setProfile(data as Profile);
+      setProfileError("");
+
+      if (data.active) {
+        await loadProjects();
+      }
+    } catch (error) {
+      console.error(
+        "Erro inesperado ao carregar profile:",
+        error
+      );
+
+      setProfile(null);
+
+      setProfileError(
+        "Ocorreu um erro ao carregar seu perfil."
+      );
+    } finally {
+      setProfileLoading(false);
     }
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * LOGIN
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   async function handleLogin(
@@ -231,43 +306,79 @@ setProfileError("");
     setLoginError("");
     setLoginLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const {
+        error,
+      } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (error) {
-      console.error(error);
+      if (error) {
+        console.error(
+          "Erro de login:",
+          error
+        );
+
+        if (
+          error.message ===
+          "Invalid login credentials"
+        ) {
+          setLoginError(
+            "E-mail ou senha inválidos."
+          );
+        } else {
+          setLoginError(
+            error.message
+          );
+        }
+
+        return;
+      }
+
+      setPassword("");
+    } catch (error) {
+      console.error(
+        "Erro inesperado no login:",
+        error
+      );
 
       setLoginError(
-        error.message === "Invalid login credentials"
-          ? "E-mail ou senha inválidos."
-          : error.message
+        "Não foi possível realizar o login."
       );
+    } finally {
+      setLoginLoading(false);
     }
-
-    setLoginLoading(false);
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * LOGOUT
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error(
+        "Erro ao sair:",
+        error
+      );
+    }
 
     setSession(null);
     setProfile(null);
     setProjects([]);
     setSelected(null);
+    setLoginError("");
+    setProfileError("");
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * PROJECTS
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   async function loadProjects() {
@@ -280,146 +391,224 @@ setProfileError("");
       return;
     }
 
-    const {
-      data,
-      error,
-    } = await supabase
-      .from("v_project_dashboard")
-      .select("*")
-      .order("health_score", {
-        ascending: true,
-      });
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("v_project_dashboard")
+        .select("*")
+        .order(
+          "health_score",
+          {
+            ascending: true,
+          }
+        );
 
-    if (error) {
-      console.error("Erro ao carregar projetos:", error);
+      if (error) {
+        console.error(
+          "Erro ao carregar projetos:",
+          error
+        );
+
+        setConnected(false);
+        setProjects([]);
+
+        return;
+      }
+
+      setConnected(true);
+      setProjects(
+        (data || []) as Project[]
+      );
+    } catch (error) {
+      console.error(
+        "Erro inesperado ao carregar projetos:",
+        error
+      );
 
       setConnected(false);
       setProjects([]);
-    } else {
-      setConnected(true);
-      setProjects((data || []) as Project[]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   /*
-   * ---------------------------------------------------------
-   * LOADING
-   * ---------------------------------------------------------
+   * =========================================================
+   * INITIAL LOADING
+   * =========================================================
    */
 
   if (authLoading) {
     return (
       <div className="auth-screen">
         <div className="auth-card">
-          <div className="brand-mark large">SAP</div>
 
-          <h1>SAP PMO Control Tower</h1>
+          <div className="brand-mark large">
+            SAP
+          </div>
 
-          <p>Inicializando ambiente...</p>
+          <h1>
+            SAP PMO Control Tower
+          </h1>
+
+          <p>
+            Inicializando ambiente...
+          </p>
 
           <div className="auth-spinner" />
+
         </div>
       </div>
     );
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * SUPABASE CONFIGURATION
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   if (!supabaseConfigured) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <div className="brand-mark large">SAP</div>
 
-          <h1>SAP PMO Control Tower</h1>
+        <div className="auth-card">
+
+          <div className="brand-mark large">
+            SAP
+          </div>
+
+          <h1>
+            SAP PMO Control Tower
+          </h1>
 
           <div className="setup-banner">
+
             <AlertTriangle size={18} />
 
             <div>
-              <strong>Supabase não configurado.</strong>
+
+              <strong>
+                Supabase não configurado.
+              </strong>
 
               <span>
-                Verifique as variáveis VITE_SUPABASE_URL e
-                VITE_SUPABASE_ANON_KEY no Vercel.
+                Verifique as variáveis
+                VITE_SUPABASE_URL e
+                VITE_SUPABASE_ANON_KEY
+                no Vercel.
               </span>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     );
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
    * LOGIN SCREEN
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   if (!session) {
     return (
       <div className="auth-screen">
+
         <div className="auth-card">
+
           <div className="auth-brand">
-            <div className="brand-mark large">SAP</div>
+
+            <div className="brand-mark large">
+              SAP
+            </div>
 
             <div>
-              <strong>SAP PMO</strong>
-              <span>Control Tower</span>
+
+              <strong>
+                SAP PMO
+              </strong>
+
+              <span>
+                Control Tower
+              </span>
+
             </div>
+
           </div>
 
           <div className="auth-title">
+
             <div className="auth-icon">
               <LockKeyhole size={22} />
             </div>
 
             <div>
-              <h1>Acesso ao Portal</h1>
+
+              <h1>
+                Acesso ao Portal
+              </h1>
 
               <p>
-                Entre para acessar o portfolio de projetos SAP.
+                Entre para acessar o
+                portfolio de projetos SAP.
               </p>
+
             </div>
+
           </div>
 
           <form onSubmit={handleLogin}>
+
             <label>
+
               E-mail
 
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 placeholder="seu@email.com"
                 required
                 autoComplete="email"
               />
+
             </label>
 
             <label>
+
               Senha
 
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
                 placeholder="Digite sua senha"
                 required
                 autoComplete="current-password"
               />
+
             </label>
 
             {loginError && (
               <div className="login-error">
+
                 <AlertTriangle size={17} />
-                <span>{loginError}</span>
+
+                <span>
+                  {loginError}
+                </span>
+
               </div>
             )}
 
@@ -432,58 +621,136 @@ setProfileError("");
                 ? "Entrando..."
                 : "Entrar no sistema"}
             </button>
+
           </form>
 
           <div className="auth-footer">
-            <span>PMO Control Tower</span>
-            <span>•</span>
-            <span>Governança SAP</span>
+
+            <span>
+              PMO Control Tower
+            </span>
+
+            <span>
+              •
+            </span>
+
+            <span>
+              Governança SAP
+            </span>
+
           </div>
+
         </div>
+
       </div>
     );
   }
 
   /*
-   * ---------------------------------------------------------
+   * =========================================================
+   * PROFILE ERROR
+   * =========================================================
+   */
+
+  if (profileError) {
+    return (
+      <div className="auth-screen">
+
+        <div className="auth-card">
+
+          <div className="brand-mark large">
+            SAP
+          </div>
+
+          <h1>
+            Erro ao carregar perfil
+          </h1>
+
+          <p>
+            O login foi realizado, mas o
+            sistema não conseguiu carregar
+            suas permissões.
+          </p>
+
+          <div className="login-error">
+
+            <AlertTriangle size={17} />
+
+            <span>
+              {profileError}
+            </span>
+
+          </div>
+
+          <button
+            className="login-button"
+            onClick={handleLogout}
+          >
+            Voltar ao login
+          </button>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  /*
+   * =========================================================
    * PROFILE LOADING
-   * ---------------------------------------------------------
+   * =========================================================
    */
 
   if (profileLoading || !profile) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <div className="brand-mark large">SAP</div>
 
-          <h1>Carregando perfil...</h1>
+        <div className="auth-card">
+
+          <div className="brand-mark large">
+            SAP
+          </div>
+
+          <h1>
+            Carregando perfil...
+          </h1>
 
           <p>
-            Validando suas permissões de acesso.
+            Validando suas permissões
+            de acesso.
           </p>
 
           <div className="auth-spinner" />
+
         </div>
+
       </div>
     );
   }
 
   /*
-   * ---------------------------------------------------------
-   * ACCESS CONTROL
-   * ---------------------------------------------------------
+   * =========================================================
+   * INACTIVE USER
+   * =========================================================
    */
 
   if (!profile.active) {
     return (
       <div className="auth-screen">
-        <div className="auth-card">
-          <div className="brand-mark large">SAP</div>
 
-          <h1>Acesso bloqueado</h1>
+        <div className="auth-card">
+
+          <div className="brand-mark large">
+            SAP
+          </div>
+
+          <h1>
+            Acesso bloqueado
+          </h1>
 
           <p>
-            Seu usuário está inativo. Entre em contato com o
+            Seu usuário está inativo.
+            Entre em contato com o
             administrador do PMO.
           </p>
 
@@ -493,50 +760,80 @@ setProfileError("");
           >
             Sair
           </button>
+
         </div>
+
       </div>
     );
   }
 
   /*
-   * ---------------------------------------------------------
-   * HEAD DASHBOARD
-   * ---------------------------------------------------------
+   * =========================================================
+   * KPI CALCULATIONS
+   * =========================================================
    */
 
-  const healthy = projects.filter(
-    (p) => statusLabel(p.health_status) === "healthy"
-  ).length;
+  const healthy =
+    projects.filter(
+      (p) =>
+        statusLabel(
+          p.health_status
+        ) === "healthy"
+    ).length;
 
-  const attention = projects.filter(
-    (p) => statusLabel(p.health_status) === "attention"
-  ).length;
+  const attention =
+    projects.filter(
+      (p) =>
+        statusLabel(
+          p.health_status
+        ) === "attention"
+    ).length;
 
-  const critical = projects.filter(
-    (p) => statusLabel(p.health_status) === "critical"
-  ).length;
+  const critical =
+    projects.filter(
+      (p) =>
+        statusLabel(
+          p.health_status
+        ) === "critical"
+    ).length;
+
+  /*
+   * =========================================================
+   * MAIN DASHBOARD
+   * =========================================================
+   */
 
   return (
     <div className="app">
 
-      {/* SIDEBAR */}
+      {/* =====================================================
+          SIDEBAR
+          ===================================================== */}
 
       <aside
         className={`sidebar ${
-          menuOpen ? "open" : ""
+          menuOpen
+            ? "open"
+            : ""
         }`}
       >
+
         <div className="brand">
+
           <div className="brand-mark">
             SAP
           </div>
 
           <div>
-            <strong>PMO Control Tower</strong>
+
+            <strong>
+              PMO Control Tower
+            </strong>
 
             <span>
               Portfolio Governance
             </span>
+
           </div>
 
           <button
@@ -547,11 +844,14 @@ setProfileError("");
           >
             <X size={18} />
           </button>
+
         </div>
 
         <nav>
 
-          <button className="nav-item active">
+          <button
+            className="nav-item active"
+          >
             <LayoutDashboard size={18} />
             Portfolio
           </button>
@@ -580,22 +880,33 @@ setProfileError("");
 
         <div className="sidebar-footer">
 
+          {/* USER */}
+
           <div className="user-profile">
+
             <UserCircle size={19} />
 
             <div>
+
               <strong>
                 {profile.full_name ||
                   profile.email}
               </strong>
 
               <span>
-                {roleLabel(profile.role)}
+                {roleLabel(
+                  profile.role
+                )}
               </span>
+
             </div>
+
           </div>
 
+          {/* CONNECTION */}
+
           <div className="connection">
+
             <span
               className={
                 connected
@@ -607,7 +918,10 @@ setProfileError("");
             {connected
               ? "Supabase conectado"
               : "Sem conexão com dados"}
+
           </div>
+
+          {/* LOGOUT */}
 
           <button
             className="nav-item logout"
@@ -618,9 +932,12 @@ setProfileError("");
           </button>
 
         </div>
+
       </aside>
 
-      {/* MAIN */}
+      {/* =====================================================
+          MAIN
+          ===================================================== */}
 
       <main>
 
@@ -636,6 +953,7 @@ setProfileError("");
           </button>
 
           <div>
+
             <div className="eyebrow">
               EXECUTIVE PORTFOLIO
             </div>
@@ -643,12 +961,15 @@ setProfileError("");
             <h1>
               Visão geral
             </h1>
+
           </div>
 
           <div className="topbar-actions">
 
             <div className="role-badge">
-              {roleLabel(profile.role)}
+              {roleLabel(
+                profile.role
+              )}
             </div>
 
             <button
@@ -656,6 +977,7 @@ setProfileError("");
               onClick={loadProjects}
               disabled={loading}
             >
+
               <RefreshCw
                 size={16}
                 className={
@@ -666,28 +988,36 @@ setProfileError("");
               />
 
               Atualizar
+
             </button>
 
           </div>
 
         </header>
 
+        {/* ===================================================
+            CONTENT
+            =================================================== */}
+
         <section className="content">
 
           <div className="welcome">
 
             <div>
+
               <h2>
                 Portfolio SAP
               </h2>
 
               <p>
-                Acompanhe a saúde dos projetos
-                em um único lugar.
+                Acompanhe a saúde dos
+                projetos em um único lugar.
               </p>
+
             </div>
 
             <div className="date">
+
               {new Date().toLocaleDateString(
                 "pt-BR",
                 {
@@ -696,9 +1026,14 @@ setProfileError("");
                   year: "numeric",
                 }
               )}
+
             </div>
 
           </div>
+
+          {/* =================================================
+              KPIs
+              ================================================= */}
 
           <div className="kpis">
 
@@ -731,19 +1066,26 @@ setProfileError("");
 
           </div>
 
+          {/* =================================================
+              PROJECTS
+              ================================================= */}
+
           <section className="panel">
 
             <div className="panel-head">
 
               <div>
+
                 <h3>
                   Projetos
                 </h3>
 
                 <p>
-                  Selecione um projeto para abrir
-                  a visão executiva detalhada.
+                  Selecione um projeto para
+                  abrir a visão executiva
+                  detalhada.
                 </p>
+
               </div>
 
               <span className="count">
@@ -755,158 +1097,208 @@ setProfileError("");
             <div className="table-wrap">
 
               {loading ? (
+
                 <div className="empty">
                   Carregando portfolio...
                 </div>
+
               ) : projects.length === 0 ? (
+
                 <div className="empty">
                   Nenhum projeto encontrado
                   no dashboard.
                 </div>
+
               ) : (
+
                 <table>
 
                   <thead>
+
                     <tr>
-                      <th>Projeto</th>
-                      <th>Health</th>
-                      <th>Progresso</th>
-                      <th>SPI</th>
-                      <th>Go-Live</th>
-                      <th>RAID</th>
-                      <th></th>
+
+                      <th>
+                        Projeto
+                      </th>
+
+                      <th>
+                        Health
+                      </th>
+
+                      <th>
+                        Progresso
+                      </th>
+
+                      <th>
+                        SPI
+                      </th>
+
+                      <th>
+                        Go-Live
+                      </th>
+
+                      <th>
+                        RAID
+                      </th>
+
+                      <th>
+                      </th>
+
                     </tr>
+
                   </thead>
 
                   <tbody>
 
-                    {projects.map((p) => {
+                    {projects.map(
+                      (p) => {
 
-                      const st =
-                        statusLabel(
-                          p.health_status
-                        );
+                        const st =
+                          statusLabel(
+                            p.health_status
+                          );
 
-                      const progress =
-                        Math.min(
-                          100,
-                          Math.max(
-                            0,
-                            Number(
-                              p.progress ?? 0
+                        const progress =
+                          Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              Number(
+                                p.progress ??
+                                  0
+                              )
                             )
-                          )
-                        );
+                          );
 
-                      return (
-                        <tr
-                          key={p.id}
-                          onClick={() =>
-                            setSelected(p)
-                          }
-                        >
+                        return (
 
-                          <td>
+                          <tr
+                            key={p.id}
+                            onClick={() =>
+                              setSelected(
+                                p
+                              )
+                            }
+                          >
 
-                            <div className="project">
+                            <td>
 
-                              <strong>
-                                {p.code}
-                              </strong>
+                              <div className="project">
 
-                              <span>
-                                {p.name}
-                              </span>
+                                <strong>
+                                  {p.code}
+                                </strong>
 
-                            </div>
+                                <span>
+                                  {p.name}
+                                </span>
 
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={`health ${st}`}
-                            >
-                              <i />
-                              {Math.round(
-                                Number(
-                                  p.health_score ??
-                                    0
-                                )
-                              )}
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <div className="progress">
-
-                              <span>
-                                {Math.round(
-                                  progress
-                                )}
-                                %
-                              </span>
-
-                              <div>
-                                <b
-                                  style={{
-                                    width: `${progress}%`,
-                                  }}
-                                />
                               </div>
 
-                            </div>
+                            </td>
 
-                          </td>
+                            <td>
 
-                          <td>
-                            {p.spi == null
-                              ? "—"
-                              : Number(
-                                  p.spi
-                                ).toFixed(2)}
-                          </td>
+                              <span
+                                className={`health ${st}`}
+                              >
 
-                          <td>
-                            {p.days_to_go_live ==
-                            null
-                              ? "—"
-                              : `${Math.round(
+                                <i />
+
+                                {Math.round(
                                   Number(
-                                    p.days_to_go_live
+                                    p.health_score ??
+                                      0
                                   )
-                                )}d`}
-                          </td>
+                                )}
 
-                          <td>
+                              </span>
 
-                            <span className="raid">
-                              {(p.critical_risks ??
-                                0) +
-                                (p.open_issues ??
+                            </td>
+
+                            <td>
+
+                              <div className="progress">
+
+                                <span>
+                                  {Math.round(
+                                    progress
+                                  )}
+                                  %
+                                </span>
+
+                                <div>
+
+                                  <b
+                                    style={{
+                                      width: `${progress}%`,
+                                    }}
+                                  />
+
+                                </div>
+
+                              </div>
+
+                            </td>
+
+                            <td>
+
+                              {p.spi == null
+                                ? "—"
+                                : Number(
+                                    p.spi
+                                  ).toFixed(
+                                    2
+                                  )}
+
+                            </td>
+
+                            <td>
+
+                              {p.days_to_go_live ==
+                              null
+                                ? "—"
+                                : `${Math.round(
+                                    Number(
+                                      p.days_to_go_live
+                                    )
+                                  )}d`}
+
+                            </td>
+
+                            <td>
+
+                              <span className="raid">
+
+                                {(p.critical_risks ??
                                   0) +
-                                (p.overdue_actions ??
-                                  0)}
-                            </span>
+                                  (p.open_issues ??
+                                    0) +
+                                  (p.overdue_actions ??
+                                    0)}
 
-                          </td>
+                              </span>
 
-                          <td>
-                            <ChevronRight
-                              size={18}
-                            />
-                          </td>
+                            </td>
 
-                        </tr>
-                      );
+                            <td>
 
-                    })}
+                              <ChevronRight
+                                size={18}
+                              />
+
+                            </td>
+
+                          </tr>
+
+                        );
+                      }
+                    )}
 
                   </tbody>
 
                 </table>
+
               )}
 
             </div>
@@ -917,13 +1309,19 @@ setProfileError("");
 
       </main>
 
+      {/* =====================================================
+          PROJECT DETAIL
+          ===================================================== */}
+
       {selected && (
+
         <ProjectDetail
           project={selected}
           onClose={() =>
             setSelected(null)
           }
         />
+
       )}
 
     </div>
@@ -931,9 +1329,9 @@ setProfileError("");
 }
 
 /*
- * ---------------------------------------------------------
- * KPI
- * ---------------------------------------------------------
+ * ===========================================================
+ * KPI COMPONENT
+ * ===========================================================
  */
 
 function Kpi({
@@ -954,7 +1352,9 @@ function Kpi({
         {title}
       </span>
 
-      <strong className={tone || ""}>
+      <strong
+        className={tone || ""}
+      >
         {value}
       </strong>
 
@@ -967,9 +1367,9 @@ function Kpi({
 }
 
 /*
- * ---------------------------------------------------------
+ * ===========================================================
  * PROJECT DETAIL
- * ---------------------------------------------------------
+ * ===========================================================
  */
 
 function ProjectDetail({
@@ -986,6 +1386,7 @@ function ProjectDetail({
     );
 
   return (
+
     <div
       className="drawer-backdrop"
       onClick={onClose}
@@ -1025,6 +1426,8 @@ function ProjectDetail({
 
         </div>
 
+        {/* HEALTH */}
+
         <div
           className={`hero-status ${st}`}
         >
@@ -1047,14 +1450,18 @@ function ProjectDetail({
           </div>
 
           <span className="pill">
+
             {st === "critical"
               ? "Crítico"
               : st === "attention"
               ? "Atenção"
               : "Healthy"}
+
           </span>
 
         </div>
+
+        {/* METRICS */}
 
         <div className="detail-grid">
 
@@ -1062,7 +1469,8 @@ function ProjectDetail({
             label="Progresso"
             value={`${Math.round(
               Number(
-                project.progress ?? 0
+                project.progress ??
+                  0
               )
             )}%`}
           />
@@ -1118,6 +1526,8 @@ function ProjectDetail({
 
         </div>
 
+        {/* NEXT EVOLUTION */}
+
         <div className="next">
 
           <h3>
@@ -1138,6 +1548,12 @@ function ProjectDetail({
     </div>
   );
 }
+
+/*
+ * ===========================================================
+ * METRIC COMPONENT
+ * ===========================================================
+ */
 
 function Metric({
   label,
