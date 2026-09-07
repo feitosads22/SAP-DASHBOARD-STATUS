@@ -15,6 +15,16 @@ import {
   Activity,
   Target,
   Clock3,
+  BarChart3,
+  Search,
+  Filter,
+  Plus,
+  MoreHorizontal,
+  Gauge,
+  UserRound,
+  BriefcaseBusiness,
+  Timer,
+  CheckCircle2,
 } from "lucide-react";
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
@@ -306,19 +316,7 @@ function App() {
         )}
 
         {module === "resources" && (
-          <ModulePage
-            title="Recursos"
-            kicker="CAPACITY MANAGEMENT"
-            description="Planejamento de horas, capacidade, alocação e utilização."
-            icon={<Users size={22} />}
-            cards={[
-              ["Projetos", projects.length],
-              ["Recursos ativos", "—"],
-              ["Horas planejadas", "—"],
-              ["Utilização", "—"],
-            ]}
-            note="A estrutura de recursos já está criada no Supabase. O próximo passo é conectar as alocações e horas reais."
-          />
+          <ResourcesPage projects={projects} />
         )}
       </main>
 
@@ -436,6 +434,289 @@ function Portfolio({
         </div>
       </section>
     </section>
+  );
+}
+
+
+function ResourcesPage({ projects }: { projects: Project[] }) {
+  const activeProjects = projects.filter((project) => {
+    const status = (project.status || "").toLowerCase();
+    return !status.includes("cancel") && !status.includes("closed") && !status.includes("encerr");
+  });
+
+  const progressAverage = activeProjects.length
+    ? Math.round(
+        activeProjects.reduce(
+          (total, project) => total + Number(project.progress ?? 0),
+          0
+        ) / activeProjects.length
+      )
+    : 0;
+
+  const projectRows = activeProjects.slice(0, 8);
+
+  return (
+    <section className="content resources-page">
+      <div className="resources-breadcrumb">
+        <span>Início</span>
+        <ChevronRight size={13} />
+        <strong>Recursos</strong>
+      </div>
+
+      <div className="resources-hero">
+        <div className="resources-hero-left">
+          <div className="resources-icon">
+            <Users size={24} />
+          </div>
+
+          <div>
+            <div className="eyebrow">CAPACITY MANAGEMENT</div>
+            <h2>Recursos</h2>
+            <p>Planejamento de horas, capacidade, alocação e utilização.</p>
+          </div>
+        </div>
+
+        <div className="resources-actions">
+          <button className="period-select" type="button">
+            <CalendarDays size={16} />
+            Setembro 2026
+            <ChevronDown size={15} />
+          </button>
+
+          <button className="primary-btn" type="button">
+            <Plus size={17} />
+            Novo Recurso
+          </button>
+        </div>
+      </div>
+
+      <div className="resource-kpis">
+        <ResourceKpi
+          icon={<Users size={21} />}
+          label="Total de Recursos"
+          value="—"
+          helper="Conecte as alocações"
+          tone="blue"
+        />
+        <ResourceKpi
+          icon={<Timer size={21} />}
+          label="Horas Planejadas"
+          value="—"
+          helper="Aguardando apontamentos"
+          tone="purple"
+        />
+        <ResourceKpi
+          icon={<CheckCircle2 size={21} />}
+          label="Horas Realizadas"
+          value="—"
+          helper="Aguardando apontamentos"
+          tone="green"
+        />
+        <ResourceKpi
+          icon={<Gauge size={21} />}
+          label="Utilização da Capacidade"
+          value="—"
+          helper="Sem dados de capacidade"
+          tone="orange"
+        />
+        <ResourceKpi
+          icon={<BriefcaseBusiness size={21} />}
+          label="Projetos Ativos"
+          value={activeProjects.length}
+          helper="No portfólio atual"
+          tone="teal"
+        />
+      </div>
+
+      <div className="resource-main-grid">
+        <section className="resource-panel resource-chart-panel">
+          <div className="resource-panel-head">
+            <div>
+              <span className="section-kicker">CAPACITY TREND</span>
+              <h3>Horas planejadas x realizadas</h3>
+            </div>
+
+            <div className="legend">
+              <span><i className="legend-dot planned" /> Planejadas</span>
+              <span><i className="legend-dot actual" /> Realizadas</span>
+            </div>
+          </div>
+
+          <div className="resource-chart">
+            {[0, 1, 2, 3, 4, 5].map((index) => (
+              <div className="chart-column" key={index}>
+                <div className="chart-bars">
+                  <div className="bar planned" style={{ height: `${38 + index * 6}%` }} />
+                  <div className="bar actual" style={{ height: `${30 + index * 5}%` }} />
+                </div>
+                <span>{["Abr/26", "Mai/26", "Jun/26", "Jul/26", "Ago/26", "Set/26"][index]}</span>
+              </div>
+            ))}
+
+            <div className="chart-empty-note">
+              <BarChart3 size={18} />
+              <span>Valores reais aparecerão após o cadastro de horas.</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="resource-panel allocation-panel">
+          <div className="resource-panel-head">
+            <div>
+              <span className="section-kicker">PORTFOLIO</span>
+              <h3>Alocação por projeto</h3>
+            </div>
+            <BriefcaseBusiness size={18} />
+          </div>
+
+          <div className="allocation-visual">
+            <div className="allocation-ring">
+              <div>
+                <strong>{projects.length}</strong>
+                <span>Projetos</span>
+              </div>
+            </div>
+
+            <div className="allocation-list">
+              {projectRows.slice(0, 5).map((project, index) => (
+                <div className="allocation-item" key={project.id}>
+                  <span className={`allocation-dot dot-${index + 1}`} />
+                  <span className="allocation-name">{project.code}</span>
+                  <strong>{project.progress == null ? "—" : `${Math.round(Number(project.progress))}%`}</strong>
+                </div>
+              ))}
+
+              {projectRows.length === 0 && (
+                <div className="resource-muted">Nenhum projeto ativo.</div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <section className="resource-panel capacity-panel">
+          <div className="resource-panel-head">
+            <div>
+              <span className="section-kicker">CAPACITY</span>
+              <h3>Status da capacidade</h3>
+            </div>
+            <Gauge size={18} />
+          </div>
+
+          <div className="capacity-gauge">
+            <div className="gauge-track">
+              <div className="gauge-value" style={{ width: `${Math.min(progressAverage, 100)}%` }} />
+            </div>
+            <strong>{progressAverage}%</strong>
+            <span>Referência de progresso do portfólio</span>
+          </div>
+
+          <div className="capacity-message">
+            <CheckCircle2 size={17} />
+            <div>
+              <strong>Base pronta para capacidade</strong>
+              <span>As horas e alocações serão exibidas quando os dados operacionais forem conectados.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="resource-panel resource-table-panel">
+        <div className="resource-table-head">
+          <div>
+            <span className="section-kicker">RESOURCE ALLOCATION</span>
+            <h3>Alocação de recursos</h3>
+            <p>Visão consolidada por projeto, recurso, função e utilização.</p>
+          </div>
+
+          <div className="resource-table-actions">
+            <div className="resource-search">
+              <Search size={16} />
+              <input placeholder="Buscar por projeto, recurso ou função..." />
+            </div>
+            <button className="filter-btn" type="button">
+              <Filter size={15} />
+              Filtros
+            </button>
+          </div>
+        </div>
+
+        <div className="table-wrap resource-table-wrap">
+          {projectRows.length === 0 ? (
+            <div className="empty resource-empty">
+              <Users size={26} />
+              <strong>Nenhuma alocação encontrada</strong>
+              <span>Cadastre recursos e alocações para começar a acompanhar a capacidade.</span>
+            </div>
+          ) : (
+            <table className="resource-table">
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Recurso</th>
+                  <th>Função</th>
+                  <th>Horas planejadas</th>
+                  <th>Horas realizadas</th>
+                  <th>Capacidade</th>
+                  <th>Utilização</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {projectRows.map((project) => (
+                  <tr key={project.id}>
+                    <td>
+                      <div className="resource-project">
+                        <span className="status-mini" />
+                        <div>
+                          <strong>{project.code}</strong>
+                          <span>{project.name}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td><span className="resource-placeholder">A definir</span></td>
+                    <td><span className="resource-placeholder">A definir</span></td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td><span className="status-pill neutral">Sem dados</span></td>
+                    <td><button className="row-action" type="button" aria-label="Mais opções"><MoreHorizontal size={17} /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function ResourceKpi({
+  icon,
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  helper: string;
+  tone: string;
+}) {
+  return (
+    <div className="resource-kpi">
+      <div className={`resource-kpi-icon ${tone}`}>{icon}</div>
+      <div className="resource-kpi-body">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{helper}</small>
+      </div>
+      <div className={`resource-kpi-line ${tone}`} />
+    </div>
   );
 }
 
