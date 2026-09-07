@@ -1,21 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
-  Activity,
   AlertTriangle,
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
-  Clock3,
   LayoutDashboard,
   LogOut,
   Menu,
   RefreshCw,
   ShieldAlert,
-  Target,
   Users,
   X,
+  Activity,
+  Target,
+  Clock3,
 } from "lucide-react";
+
 import { supabase, supabaseConfigured } from "./lib/supabase";
 
 type Project = {
@@ -52,34 +53,6 @@ const demoProjects: Project[] = [
     days_to_go_live: 120,
   },
 ];
-
-const moduleInfo: Record<Module, { title: string; eyebrow: string; description: string }> = {
-  portfolio: {
-    title: "Visão geral",
-    eyebrow: "EXECUTIVE PORTFOLIO",
-    description: "Acompanhe a saúde dos projetos em um único lugar.",
-  },
-  schedule: {
-    title: "Cronograma",
-    eyebrow: "PROJECT SCHEDULE",
-    description: "Controle fases, marcos, prazo planejado e realizado.",
-  },
-  raid: {
-    title: "RAID",
-    eyebrow: "GOVERNANCE CONTROL",
-    description: "Monitore riscos, issues, ações e decisões críticas.",
-  },
-  financial: {
-    title: "Financeiro",
-    eyebrow: "FINANCIAL CONTROL",
-    description: "Acompanhe budget, realizado, forecast e desvios.",
-  },
-  resources: {
-    title: "Recursos",
-    eyebrow: "RESOURCE MANAGEMENT",
-    description: "Controle capacidade, alocação e utilização dos recursos.",
-  },
-};
 
 function statusLabel(status?: string) {
   const value = (status || "").toLowerCase().trim();
@@ -148,27 +121,29 @@ function App() {
     loadProjects();
   }, []);
 
-  const healthy = projects.filter((p) => statusLabel(p.health_status) === "healthy").length;
-  const attention = projects.filter((p) => statusLabel(p.health_status) === "attention").length;
-  const critical = projects.filter((p) => statusLabel(p.health_status) === "critical").length;
+  const healthy = projects.filter(
+    (project) => statusLabel(project.health_status) === "healthy"
+  ).length;
 
-  const totalRaid = useMemo(
-    () =>
-      projects.reduce(
-        (sum, p) =>
-          sum +
-          Number(p.critical_risks ?? 0) +
-          Number(p.open_issues ?? 0) +
-          Number(p.overdue_actions ?? 0),
-        0,
-      ),
-    [projects],
-  );
+  const attention = projects.filter(
+    (project) => statusLabel(project.health_status) === "attention"
+  ).length;
 
-  function selectModule(next: Module) {
+  const critical = projects.filter(
+    (project) => statusLabel(project.health_status) === "critical"
+  ).length;
+
+  const moduleTitles: Record<Module, string> = {
+    portfolio: "Visão geral",
+    schedule: "Cronograma",
+    raid: "RAID",
+    financial: "Financeiro",
+    resources: "Recursos",
+  };
+
+  function navigate(next: Module) {
     setModule(next);
     setMenuOpen(false);
-    setSelected(null);
   }
 
   return (
@@ -180,6 +155,7 @@ function App() {
             <strong>PMO Control Tower</strong>
             <span>Portfolio Governance</span>
           </div>
+
           <button
             className="icon-btn mobile-close"
             onClick={() => setMenuOpen(false)}
@@ -191,21 +167,36 @@ function App() {
         </div>
 
         <nav>
-          <NavItem active={module === "portfolio"} icon={<LayoutDashboard size={18} />} onClick={() => selectModule("portfolio")}>
-            Portfolio
-          </NavItem>
-          <NavItem active={module === "schedule"} icon={<CalendarDays size={18} />} onClick={() => selectModule("schedule")}>
-            Cronograma
-          </NavItem>
-          <NavItem active={module === "raid"} icon={<ShieldAlert size={18} />} onClick={() => selectModule("raid")}>
-            RAID
-          </NavItem>
-          <NavItem active={module === "financial"} icon={<CircleDollarSign size={18} />} onClick={() => selectModule("financial")}>
-            Financeiro
-          </NavItem>
-          <NavItem active={module === "resources"} icon={<Users size={18} />} onClick={() => selectModule("resources")}>
-            Recursos
-          </NavItem>
+          <NavButton
+            active={module === "portfolio"}
+            onClick={() => navigate("portfolio")}
+            icon={<LayoutDashboard size={18} />}
+            label="Portfolio"
+          />
+          <NavButton
+            active={module === "schedule"}
+            onClick={() => navigate("schedule")}
+            icon={<CalendarDays size={18} />}
+            label="Cronograma"
+          />
+          <NavButton
+            active={module === "raid"}
+            onClick={() => navigate("raid")}
+            icon={<ShieldAlert size={18} />}
+            label="RAID"
+          />
+          <NavButton
+            active={module === "financial"}
+            onClick={() => navigate("financial")}
+            icon={<CircleDollarSign size={18} />}
+            label="Financeiro"
+          />
+          <NavButton
+            active={module === "resources"}
+            onClick={() => navigate("resources")}
+            icon={<Users size={18} />}
+            label="Recursos"
+          />
         </nav>
 
         <div className="sidebar-footer">
@@ -213,6 +204,7 @@ function App() {
             <span className={connected ? "dot on" : "dot"} />
             {connected ? "Supabase conectado" : "Configure o Supabase"}
           </div>
+
           <button className="nav-item" type="button">
             <LogOut size={18} />
             Sair
@@ -231,9 +223,10 @@ function App() {
             >
               <Menu size={20} />
             </button>
+
             <div>
-              <div className="eyebrow">{moduleInfo[module].eyebrow}</div>
-              <h1>{moduleInfo[module].title}</h1>
+              <div className="eyebrow">EXECUTIVE PORTFOLIO</div>
+              <h1>{moduleTitles[module]}</h1>
             </div>
           </div>
 
@@ -253,62 +246,86 @@ function App() {
           </div>
         )}
 
-        <section className="content">
-          <div className="welcome">
-            <div>
-              <h2>{module === "portfolio" ? "Portfolio SAP" : moduleInfo[module].title}</h2>
-              <p>{moduleInfo[module].description}</p>
-            </div>
-            <div className="date">
-              {new Date().toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
-            </div>
-          </div>
+        {module === "portfolio" && (
+          <Portfolio
+            projects={projects}
+            loading={loading}
+            healthy={healthy}
+            attention={attention}
+            critical={critical}
+            onSelect={setSelected}
+          />
+        )}
 
-          {module === "portfolio" ? (
-            <Portfolio
-              projects={projects}
-              loading={loading}
-              healthy={healthy}
-              attention={attention}
-              critical={critical}
-              onSelect={setSelected}
-            />
-          ) : (
-            <ModuleView
-              module={module}
-              projects={projects}
-              totalRaid={totalRaid}
-              onSelect={setSelected}
-            />
-          )}
-        </section>
+        {module === "schedule" && (
+          <ModulePage
+            title="Cronograma"
+            kicker="DELIVERY MANAGEMENT"
+            description="Planejado, realizado, SPI, Go-Live e próximos marcos dos projetos."
+            icon={<CalendarDays size={22} />}
+            cards={[
+              ["Projetos monitorados", projects.length],
+              ["SPI médio", average(projects.map((p) => Number(p.spi)).filter(Number.isFinite)).toFixed(2)],
+              ["Progresso médio", `${Math.round(average(projects.map((p) => Number(p.progress ?? 0))))}%`],
+              ["Go-Live médio", `${Math.round(average(projects.map((p) => Number(p.days_to_go_live)).filter(Number.isFinite)))}d`],
+            ]}
+            note="A estrutura de cronograma já está criada no Supabase. O próximo passo é cadastrar as linhas de planejamento e marcos."
+          />
+        )}
+
+        {module === "raid" && (
+          <ModulePage
+            title="RAID"
+            kicker="GOVERNANCE CONTROL"
+            description="Riscos, Issues, Ações, Decisões e Dependências por projeto."
+            icon={<ShieldAlert size={22} />}
+            cards={[
+              ["Riscos críticos", sum(projects, "critical_risks")],
+              ["Issues abertas", sum(projects, "open_issues")],
+              ["Ações atrasadas", sum(projects, "overdue_actions")],
+              ["Projetos críticos", critical],
+            ]}
+            note="A estrutura RAID já está criada no Supabase. O próximo passo é conectar os registros individuais ao CRUD."
+          />
+        )}
+
+        {module === "financial" && (
+          <ModulePage
+            title="Financeiro"
+            kicker="FINANCIAL GOVERNANCE"
+            description="Budget, realizado, forecast e desvios do portfólio SAP."
+            icon={<CircleDollarSign size={22} />}
+            cards={[
+              ["Projetos", projects.length],
+              ["Budget", "—"],
+              ["Forecast", "—"],
+              ["Desvio", "—"],
+            ]}
+            note="A estrutura financeira já está criada no Supabase. Os valores passam a aparecer após o cadastro dos dados financeiros."
+          />
+        )}
+
+        {module === "resources" && (
+          <ModulePage
+            title="Recursos"
+            kicker="CAPACITY MANAGEMENT"
+            description="Planejamento de horas, capacidade, alocação e utilização."
+            icon={<Users size={22} />}
+            cards={[
+              ["Projetos", projects.length],
+              ["Recursos ativos", "—"],
+              ["Horas planejadas", "—"],
+              ["Utilização", "—"],
+            ]}
+            note="A estrutura de recursos já está criada no Supabase. O próximo passo é conectar as alocações e horas reais."
+          />
+        )}
       </main>
 
-      {selected && <ProjectDetail project={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ProjectDetail project={selected} onClose={() => setSelected(null)} />
+      )}
     </div>
-  );
-}
-
-function NavItem({
-  active,
-  icon,
-  children,
-  onClick,
-}: {
-  active: boolean;
-  icon: ReactNode;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick} type="button">
-      {icon}
-      {children}
-    </button>
   );
 }
 
@@ -328,7 +345,21 @@ function Portfolio({
   onSelect: (project: Project) => void;
 }) {
   return (
-    <>
+    <section className="content">
+      <div className="welcome">
+        <div>
+          <h2>Portfolio SAP</h2>
+          <p>Acompanhe a saúde dos projetos em um único lugar.</p>
+        </div>
+        <div className="date">
+          {new Date().toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </div>
+      </div>
+
       <div className="kpis">
         <Kpi title="Projetos" value={projects.length} subtitle="No portfolio" />
         <Kpi title="Healthy" value={healthy} subtitle="Dentro do esperado" tone="healthy" />
@@ -404,84 +435,80 @@ function Portfolio({
           )}
         </div>
       </section>
-    </>
+    </section>
   );
 }
 
-function ModuleView({
-  module,
-  projects,
-  totalRaid,
-  onSelect,
+function ModulePage({
+  title,
+  kicker,
+  description,
+  icon,
+  cards,
+  note,
 }: {
-  module: Module;
-  projects: Project[];
-  totalRaid: number;
-  onSelect: (project: Project) => void;
+  title: string;
+  kicker: string;
+  description: string;
+  icon: ReactNode;
+  cards: [string, string | number][];
+  note: string;
 }) {
-  const cards =
-    module === "schedule"
-      ? [
-          ["Projetos monitorados", projects.length],
-          ["Em andamento", projects.filter((p) => p.status === "in_progress").length],
-          ["SPI médio", average(projects.map((p) => p.spi))],
-          ["Go-Lives próximos", projects.filter((p) => Number(p.days_to_go_live ?? 9999) <= 90).length],
-        ]
-      : module === "raid"
-        ? [
-            ["Itens RAID", totalRaid],
-            ["Riscos críticos", projects.reduce((s, p) => s + Number(p.critical_risks ?? 0), 0)],
-            ["Issues abertas", projects.reduce((s, p) => s + Number(p.open_issues ?? 0), 0)],
-            ["Ações atrasadas", projects.reduce((s, p) => s + Number(p.overdue_actions ?? 0), 0)],
-          ]
-        : module === "financial"
-          ? [["Budget", "—"], ["Realizado", "—"], ["Forecast", "—"], ["Desvio", "—"]]
-          : [["Capacidade", "—"], ["Alocados", "—"], ["Utilização", "—"], ["Disponíveis", "—"]];
-
   return (
-    <>
-      <div className="module-kpis">
+    <section className="content">
+      <div className="module-hero">
+        <div className="module-icon">{icon}</div>
+        <div>
+          <div className="eyebrow">{kicker}</div>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+      </div>
+
+      <div className="module-grid">
         {cards.map(([label, value]) => (
-          <div className="module-card" key={String(label)}>
+          <div className="module-card" key={label}>
             <span>{label}</span>
             <strong>{value}</strong>
           </div>
         ))}
       </div>
 
-      <section className="panel module-panel">
+      <section className="panel">
         <div className="panel-head">
           <div>
-            <h3>{moduleInfo[module].title}</h3>
-            <p>Estrutura preparada para receber os dados do módulo no Supabase.</p>
+            <h3>{title}</h3>
+            <p>Estrutura pronta para receber os dados operacionais.</p>
           </div>
-          <span className="count">Módulo ativo</span>
+          <span className="count">Módulo</span>
         </div>
-
-        {projects.length ? (
-          <div className="module-project-list">
-            {projects.map((project) => (
-              <button className="module-project" key={project.id} onClick={() => onSelect(project)} type="button">
-                <div>
-                  <strong>{project.code}</strong>
-                  <span>{project.name}</span>
-                </div>
-                <ChevronRight size={18} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="empty">Nenhum projeto disponível.</div>
-        )}
+        <div className="module-empty">
+          <Activity size={24} />
+          <strong>Base preparada</strong>
+          <span>{note}</span>
+        </div>
       </section>
-    </>
+    </section>
   );
 }
 
-function average(values: (number | undefined)[]) {
-  const valid = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
-  if (!valid.length) return "—";
-  return (valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2);
+function NavButton({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick} type="button">
+      {icon}
+      {label}
+    </button>
+  );
 }
 
 function Kpi({
@@ -504,7 +531,13 @@ function Kpi({
   );
 }
 
-function ProjectDetail({ project, onClose }: { project: Project; onClose: () => void }) {
+function ProjectDetail({
+  project,
+  onClose,
+}: {
+  project: Project;
+  onClose: () => void;
+}) {
   const status = statusLabel(project.health_status);
   const health = Math.round(Number(project.health_score ?? 0));
   const progress = Math.min(100, Math.max(0, Number(project.progress ?? 0)));
@@ -530,7 +563,9 @@ function ProjectDetail({ project, onClose }: { project: Project; onClose: () => 
             <h2>{project.code}</h2>
             <p>{project.name}</p>
           </div>
-          <button className="icon-btn" onClick={onClose} type="button" aria-label="Fechar"><X /></button>
+          <button className="icon-btn" onClick={onClose} type="button" aria-label="Fechar">
+            <X />
+          </button>
         </div>
 
         <section className={`executive-health ${status}`}>
@@ -539,7 +574,10 @@ function ProjectDetail({ project, onClose }: { project: Project; onClose: () => 
             <div className="health-number">{health}</div>
             <div className="health-description">{healthDescription}</div>
           </div>
-          <div className="health-status"><span className="health-status-dot" /><strong>{currentStatus}</strong></div>
+          <div className="health-status">
+            <span className="health-status-dot" />
+            <strong>{currentStatus}</strong>
+          </div>
         </section>
 
         <section className="executive-kpis">
@@ -549,7 +587,10 @@ function ProjectDetail({ project, onClose }: { project: Project; onClose: () => 
           <ExecutiveMetric label="Fase atual" value={project.current_phase || "—"} />
         </section>
 
-        <ExecutiveSection kicker="EXECUTIVE SUMMARY" title="Leitura executiva">
+        <section className="executive-section">
+          <div className="section-title">
+            <div><span className="section-kicker">EXECUTIVE SUMMARY</span><h3>Leitura executiva</h3></div>
+          </div>
           <div className={`executive-reading ${status}`}>
             <div className="reading-icon">{status === "healthy" ? "✓" : "!"}</div>
             <div>
@@ -557,75 +598,82 @@ function ProjectDetail({ project, onClose }: { project: Project; onClose: () => 
               <p>{healthDescription}</p>
             </div>
           </div>
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="HEALTH DRIVERS" title="Por que este Health?">
+        <section className="executive-section">
+          <div className="section-title">
+            <div><span className="section-kicker">HEALTH DRIVERS</span><h3>Por que este Health?</h3></div>
+          </div>
           <div className="health-drivers">
             <Driver label="Riscos críticos" value={criticalRisks} tone={criticalRisks > 0 ? "critical" : "healthy"} />
             <Driver label="Issues abertas" value={openIssues} tone={openIssues > 0 ? "attention" : "healthy"} />
             <Driver label="Ações atrasadas" value={overdueActions} tone={overdueActions > 0 ? "attention" : "healthy"} />
             <Driver label="Itens RAID" value={raidTotal} tone={raidTotal > 0 ? "attention" : "healthy"} />
           </div>
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="DELIVERY" title="Progresso do projeto" value={`${Math.round(progress)}%`}>
+        <section className="executive-section">
+          <div className="section-title">
+            <div><span className="section-kicker">DELIVERY</span><h3>Progresso do projeto</h3></div>
+            <strong className="section-value">{Math.round(progress)}%</strong>
+          </div>
           <div className="executive-progress">
             <div className="progress-track"><div className="progress-value" style={{ width: `${progress}%` }} /></div>
             <div className="progress-caption"><span>Realizado</span><span>{Math.round(progress)}%</span></div>
           </div>
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="SCHEDULE" title="Cronograma">
-          <Placeholder icon={<CalendarDays size={20} />} title="Indicadores de cronograma" text="Dados detalhados serão conectados ao módulo de cronograma." />
-          <div className="schedule-summary">
-            <div><span>Planejado</span><strong>—</strong></div>
-            <div><span>Realizado</span><strong>{Math.round(progress)}%</strong></div>
-            <div><span>SPI</span><strong>{project.spi == null ? "—" : Number(project.spi).toFixed(2)}</strong></div>
+        <section className="executive-section">
+          <div className="section-title">
+            <div><span className="section-kicker">SCHEDULE</span><h3>Cronograma</h3></div>
           </div>
-        </ExecutiveSection>
+          <div className="placeholder-card">
+            <CalendarDays size={20} />
+            <div><strong>Indicadores de cronograma</strong><span>Dados detalhados conectados ao módulo de cronograma.</span></div>
+            <b>—</b>
+          </div>
+        </section>
 
-        <ExecutiveSection kicker="GOVERNANCE" title="RAID" value={`${raidTotal} itens`}>
+        <section className="executive-section">
+          <div className="section-title">
+            <div><span className="section-kicker">GOVERNANCE</span><h3>RAID</h3></div>
+            <span className="count">{raidTotal} itens</span>
+          </div>
           <div className="raid-grid">
             <RaidCard label="Riscos" value={criticalRisks} icon={<ShieldAlert size={18} />} tone="critical" />
             <RaidCard label="Issues" value={openIssues} icon={<AlertTriangle size={18} />} tone="attention" />
             <RaidCard label="Ações" value={overdueActions} icon={<Clock3 size={18} />} tone="attention" />
             <RaidCard label="Decisões" value="—" icon={<Target size={18} />} />
           </div>
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="FINANCIAL" title="Financeiro">
+        <section className="executive-section">
+          <div className="section-title"><div><span className="section-kicker">FINANCIAL</span><h3>Financeiro</h3></div></div>
           <div className="financial-grid">
             <ExecutiveMetric label="Budget" value="—" />
             <ExecutiveMetric label="Realizado" value="—" />
             <ExecutiveMetric label="Forecast" value="—" />
             <ExecutiveMetric label="Desvio" value="—" />
           </div>
-          <PlaceholderNote icon={<CircleDollarSign size={18} />} text="Indicadores financeiros serão conectados ao módulo Financeiro." />
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="PEOPLE" title="Recursos">
+        <section className="executive-section">
+          <div className="section-title"><div><span className="section-kicker">PEOPLE</span><h3>Recursos</h3></div></div>
           <div className="financial-grid">
             <ExecutiveMetric label="Planejado" value="—" />
             <ExecutiveMetric label="Realizado" value="—" />
             <ExecutiveMetric label="Capacidade" value="—" />
             <ExecutiveMetric label="Utilização" value="—" />
           </div>
-          <PlaceholderNote icon={<Users size={18} />} text="Dados de recursos serão conectados ao módulo de Recursos." />
-        </ExecutiveSection>
+        </section>
 
-        <ExecutiveSection kicker="MILESTONES" title="Próximos marcos">
+        <section className="executive-section">
+          <div className="section-title"><div><span className="section-kicker">MILESTONES</span><h3>Próximos marcos</h3></div></div>
           <div className="milestone-empty">
             <CalendarDays size={22} />
-            <strong>Nenhum marco disponível</strong>
-            <span>Os próximos marcos serão apresentados quando o módulo de cronograma estiver conectado.</span>
+            <strong>Marcos disponíveis no módulo Cronograma</strong>
+            <span>Cadastre os marcos para acompanhar datas planejadas e realizadas.</span>
           </div>
-        </ExecutiveSection>
-
-        <section className="executive-section project-info">
-          <div><span>Projeto</span><strong>{project.code}</strong></div>
-          <div><span>Status</span><strong>{currentStatus}</strong></div>
-          <div><span>Fase</span><strong>{project.current_phase || "—"}</strong></div>
-          <div><span>Go-Live</span><strong>{project.days_to_go_live == null ? "—" : `${Math.round(Number(project.days_to_go_live))} dias`}</strong></div>
         </section>
 
         <div className="drawer-footer">
@@ -637,43 +685,15 @@ function ProjectDetail({ project, onClose }: { project: Project; onClose: () => 
   );
 }
 
-function ExecutiveSection({
-  kicker,
-  title,
+function ExecutiveMetric({
+  label,
   value,
-  children,
+  highlight = false,
 }: {
-  kicker: string;
-  title: string;
-  value?: string;
-  children: ReactNode;
+  label: string;
+  value: string | number;
+  highlight?: boolean;
 }) {
-  return (
-    <section className="executive-section">
-      <div className="section-title">
-        <div><span className="section-kicker">{kicker}</span><h3>{title}</h3></div>
-        {value && <strong className="section-value">{value}</strong>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Placeholder({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return (
-    <div className="placeholder-card">
-      {icon}
-      <div><strong>{title}</strong><span>{text}</span></div>
-      <b>—</b>
-    </div>
-  );
-}
-
-function PlaceholderNote({ icon, text }: { icon: ReactNode; text: string }) {
-  return <div className="placeholder-note">{icon}<span>{text}</span></div>;
-}
-
-function ExecutiveMetric({ label, value, highlight = false }: { label: string; value: string | number; highlight?: boolean }) {
   return <div className={`executive-metric ${highlight ? "highlight" : ""}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
@@ -683,6 +703,15 @@ function Driver({ label, value, tone }: { label: string; value: number; tone: st
 
 function RaidCard({ label, value, icon, tone = "" }: { label: string; value: string | number; icon: ReactNode; tone?: string }) {
   return <div className={`raid-card ${tone}`}><div className="raid-card-icon">{icon}</div><div><strong>{value}</strong><span>{label}</span></div></div>;
+}
+
+function sum(projects: Project[], key: keyof Project) {
+  return projects.reduce((total, project) => total + Number(project[key] ?? 0), 0);
+}
+
+function average(values: number[]) {
+  if (!values.length) return 0;
+  return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
 export default App;
