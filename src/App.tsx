@@ -1,20 +1,23 @@
-import { useEffect, useState } from "react";
+```tsx
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
+  Activity,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  Clock3,
   LayoutDashboard,
   LogOut,
   Menu,
   RefreshCw,
+  Search,
   ShieldAlert,
+  Target,
   Users,
   X,
-  Activity,
-  Target,
-  Clock3,
 } from "lucide-react";
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
@@ -35,12 +38,15 @@ type Project = {
   days_to_go_live?: number;
 };
 
+type FilterStatus = "all" | "healthy" | "attention" | "critical";
+
 const demoProjects: Project[] = [
   {
     id: "demo-1",
     code: "DEMO-001",
     name: "Projeto SAP — conexão pendente",
     status: "in_progress",
+    current_phase: "Preparação",
     progress: 0,
     spi: 1,
     health_score: 80,
@@ -52,7 +58,7 @@ const demoProjects: Project[] = [
   },
 ];
 
-function statusLabel(status?: string) {
+function statusLabel(status?: string): FilterStatus {
   const value = (status || "").toLowerCase().trim();
 
   if (
@@ -74,6 +80,15 @@ function statusLabel(status?: string) {
     return "attention";
   }
 
+  if (
+    value.includes("healthy") ||
+    value.includes("green") ||
+    value.includes("saudável") ||
+    value.includes("saudavel")
+  ) {
+    return "healthy";
+  }
+
   return "healthy";
 }
 
@@ -86,15 +101,28 @@ function statusText(status?: string) {
   return "Healthy";
 }
 
+function average(values: number[]) {
+  if (!values.length) return 0;
+
+  return (
+    values.reduce((sum, value) => sum + value, 0) /
+    values.length
+  );
+}
+
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Project | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FilterStatus>("all");
 
   async function loadProjects() {
     setLoading(true);
+    setErrorMessage("");
 
     if (!supabaseConfigured) {
       setConnected(false);
@@ -110,8 +138,13 @@ function App() {
 
     if (error) {
       console.error("Erro ao carregar projetos:", error);
+
       setConnected(false);
       setProjects([]);
+
+      setErrorMessage(
+        `Não foi possível carregar o portfolio. ${error.message}`
+      );
     } else {
       setConnected(true);
       setProjects((data || []) as Project[]);
@@ -125,20 +158,90 @@ function App() {
   }, []);
 
   const healthy = projects.filter(
-    (project) => statusLabel(project.health_status) === "healthy"
+    (project) =>
+      statusLabel(project.health_status) === "healthy"
   ).length;
 
   const attention = projects.filter(
-    (project) => statusLabel(project.health_status) === "attention"
+    (project) =>
+      statusLabel(project.health_status) === "attention"
   ).length;
 
   const critical = projects.filter(
-    (project) => statusLabel(project.health_status) === "critical"
+    (project) =>
+      statusLabel(project.health_status) === "critical"
   ).length;
+
+  const healthAverage = average(
+    projects.map((project) =>
+      Number(project.health_score ?? 0)
+    )
+  );
+
+  const spiAverage = average(
+    projects
+      .filter((project) => project.spi != null)
+      .map((project) => Number(project.spi))
+  );
+
+  const progressAverage = average(
+    projects.map((project) =>
+      Number(project.progress ?? 0)
+    )
+  );
+
+  const raidTotal = projects.reduce(
+    (total, project) =>
+      total +
+      Number(project.critical_risks ?? 0) +
+      Number(project.open_issues ?? 0) +
+      Number(project.overdue_actions ?? 0),
+    0
+  );
+
+  const portfolioStatus: FilterStatus =
+    critical > 0
+      ? "critical"
+      : attention > 0
+        ? "attention"
+        : "healthy";
+
+  const filteredProjects = useMemo(() => {
+    const term = search.toLowerCase().trim();
+
+    return [...projects]
+      .filter((project) => {
+        if (filter === "all") return true;
+
+        return (
+          statusLabel(project.health_status) === filter
+        );
+      })
+      .filter((project) => {
+        if (!term) return true;
+
+        return (
+          project.code.toLowerCase().includes(term) ||
+          project.name.toLowerCase().includes(term) ||
+          (project.current_phase || "")
+            .toLowerCase()
+            .includes(term)
+        );
+      })
+      .sort(
+        (a, b) =>
+          Number(a.health_score ?? 0) -
+          Number(b.health_score ?? 0)
+      );
+  }, [projects, filter, search]);
 
   return (
     <div className="app">
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+      <aside
+        className={`sidebar ${
+          menuOpen ? "open" : ""
+        }`}
+      >
         <div className="brand">
           <div className="brand-mark">SAP</div>
 
@@ -158,7 +261,10 @@ function App() {
         </div>
 
         <nav>
-          <button className="nav-item active" type="button">
+          <button
+            className="nav-item active"
+            type="button"
+          >
             <LayoutDashboard size={18} />
             Portfolio
           </button>
@@ -186,11 +292,17 @@ function App() {
 
         <div className="sidebar-footer">
           <div className="connection">
-            <span className={connected ? "dot on" : "dot"} />
+            <span
+              className={
+                connected ? "dot on" : "dot"
+              }
+            />
 
             {connected
               ? "Supabase conectado"
-              : "Configure o Supabase"}
+              : supabaseConfigured
+                ? "Erro de conexão"
+                : "Modo demonstração"}
           </div>
 
           <button className="nav-item" type="button">
@@ -213,18 +325,32 @@ function App() {
             </button>
 
             <div>
-              <div className="eyebrow">EXECUTIVE PORTFOLIO</div>
+              <div className="eyebrow">
+                EXECUTIVE PORTFOLIO
+              </div>
+
               <h1>Visão geral</h1>
             </div>
           </div>
 
           <button
-            className="refresh"
+            className={`refresh ${
+              loading ? "loading" : ""
+            }`}
             onClick={loadProjects}
+            disabled={loading}
             type="button"
           >
-            <RefreshCw size={16} />
-            Atualizar
+            <RefreshCw
+              size={16}
+              className={
+                loading ? "spin" : ""
+              }
+            />
+
+            {loading
+              ? "Atualizando..."
+              : "Atualizar"}
           </button>
         </header>
 
@@ -233,39 +359,170 @@ function App() {
             <AlertTriangle size={18} />
 
             <div>
-              <strong>Conexão ainda não configurada.</strong>
+              <strong>
+                Conexão ainda não configurada.
+              </strong>
 
               <span>
-                Configure as variáveis do projeto Supabase na Vercel.
+                O dashboard está usando dados de demonstração.
+                Configure VITE_SUPABASE_URL e
+                VITE_SUPABASE_ANON_KEY na Vercel.
               </span>
             </div>
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="error-banner">
+            <AlertTriangle size={18} />
+
+            <div>
+              <strong>
+                Falha ao carregar o portfolio
+              </strong>
+
+              <span>{errorMessage}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={loadProjects}
+            >
+              Tentar novamente
+            </button>
           </div>
         )}
 
         <section className="content">
           <div className="welcome">
             <div>
+              <div className="eyebrow">
+                SAP PROGRAM GOVERNANCE
+              </div>
+
               <h2>Portfolio SAP</h2>
 
               <p>
-                Acompanhe a saúde dos projetos em um único lugar.
+                Acompanhe a saúde, execução e principais
+                indicadores dos projetos em um único lugar.
               </p>
             </div>
 
             <div className="date">
-              {new Date().toLocaleDateString("pt-BR", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-              })}
+              {new Date().toLocaleDateString(
+                "pt-BR",
+                {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }
+              )}
             </div>
           </div>
+
+          <section
+            className={`portfolio-health ${portfolioStatus}`}
+          >
+            <div className="portfolio-health-main">
+              <div>
+                <span className="portfolio-kicker">
+                  PORTFOLIO HEALTH
+                </span>
+
+                <h3>
+                  {portfolioStatus === "critical"
+                    ? "Atenção executiva requerida"
+                    : portfolioStatus === "attention"
+                      ? "Portfolio requer acompanhamento"
+                      : "Portfolio sob controle"}
+                </h3>
+
+                <p>
+                  {projects.length} projeto
+                  {projects.length === 1
+                    ? ""
+                    : "s"} monitorado
+                  {projects.length === 1
+                    ? ""
+                    : "s"} no Control Tower.
+                </p>
+              </div>
+
+              <div className="portfolio-health-score">
+                <span>Health médio</span>
+
+                <strong>
+                  {Math.round(healthAverage)}
+                </strong>
+              </div>
+            </div>
+
+            <div className="portfolio-health-bar">
+              <div>
+                <span
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(
+                        0,
+                        healthAverage
+                      )
+                    )}%`,
+                  }}
+                />
+              </div>
+
+              <small>
+                {healthy} Healthy · {attention} Atenção ·{" "}
+                {critical} Crítico
+              </small>
+            </div>
+          </section>
 
           <div className="kpis">
             <Kpi
               title="Projetos"
               value={projects.length}
               subtitle="No portfolio"
+            />
+
+            <Kpi
+              title="Health médio"
+              value={Math.round(
+                healthAverage
+              )}
+              subtitle="Saúde do portfolio"
+              tone={
+                portfolioStatus
+              }
+            />
+
+            <Kpi
+              title="SPI médio"
+              value={
+                projects.some(
+                  (project) =>
+                    project.spi != null
+                )
+                  ? spiAverage.toFixed(2)
+                  : "—"
+              }
+              subtitle="Performance de prazo"
+              tone={
+                spiAverage >= 1
+                  ? "healthy"
+                  : spiAverage > 0
+                    ? "attention"
+                    : ""
+              }
+            />
+
+            <Kpi
+              title="Progresso médio"
+              value={`${Math.round(
+                progressAverage
+              )}%`}
+              subtitle="Execução do portfolio"
             />
 
             <Kpi
@@ -288,6 +545,17 @@ function App() {
               subtitle="Requer ação"
               tone="critical"
             />
+
+            <Kpi
+              title="RAID"
+              value={raidTotal}
+              subtitle="Itens registrados"
+              tone={
+                raidTotal > 0
+                  ? "attention"
+                  : "healthy"
+              }
+            />
           </div>
 
           <section className="panel">
@@ -296,22 +564,112 @@ function App() {
                 <h3>Projetos</h3>
 
                 <p>
-                  Selecione um projeto para abrir a visão executiva
-                  detalhada.
+                  Selecione um projeto para abrir a visão
+                  executiva detalhada.
                 </p>
               </div>
 
               <span className="count">
-                {projects.length} projetos
+                {filteredProjects.length} de{" "}
+                {projects.length}
               </span>
+            </div>
+
+            <div className="project-toolbar">
+              <div className="search-box">
+                <Search size={16} />
+
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) =>
+                    setSearch(
+                      event.target.value
+                    )
+                  }
+                  placeholder="Buscar projeto, código ou fase..."
+                />
+
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Limpar busca"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <div className="filter-group">
+                <FilterButton
+                  label="Todos"
+                  value="all"
+                  active={filter === "all"}
+                  onClick={() =>
+                    setFilter("all")
+                  }
+                />
+
+                <FilterButton
+                  label={`Healthy ${healthy}`}
+                  value="healthy"
+                  active={
+                    filter === "healthy"
+                  }
+                  onClick={() =>
+                    setFilter("healthy")
+                  }
+                />
+
+                <FilterButton
+                  label={`Atenção ${attention}`}
+                  value="attention"
+                  active={
+                    filter === "attention"
+                  }
+                  onClick={() =>
+                    setFilter("attention")
+                  }
+                />
+
+                <FilterButton
+                  label={`Crítico ${critical}`}
+                  value="critical"
+                  active={
+                    filter === "critical"
+                  }
+                  onClick={() =>
+                    setFilter("critical")
+                  }
+                />
+              </div>
             </div>
 
             <div className="table-wrap">
               {loading ? (
-                <div className="empty">Carregando portfolio...</div>
-              ) : projects.length === 0 ? (
                 <div className="empty">
-                  Nenhum projeto encontrado no dashboard.
+                  <RefreshCw
+                    size={20}
+                    className="spin"
+                  />
+
+                  <span>
+                    Carregando portfolio...
+                  </span>
+                </div>
+              ) : filteredProjects.length === 0 ? (
+                <div className="empty">
+                  <Search size={22} />
+
+                  <strong>
+                    Nenhum projeto encontrado
+                  </strong>
+
+                  <span>
+                    Ajuste os filtros ou o termo da
+                    pesquisa.
+                  </span>
                 </div>
               ) : (
                 <table>
@@ -319,6 +677,7 @@ function App() {
                     <tr>
                       <th>Projeto</th>
                       <th>Health</th>
+                      <th>Fase</th>
                       <th>Progresso</th>
                       <th>SPI</th>
                       <th>Go-Live</th>
@@ -328,93 +687,168 @@ function App() {
                   </thead>
 
                   <tbody>
-                    {projects.map((project) => {
-                      const status = statusLabel(
-                        project.health_status
-                      );
+                    {filteredProjects.map(
+                      (project) => {
+                        const status =
+                          statusLabel(
+                            project.health_status
+                          );
 
-                      const progress = Math.min(
-                        100,
-                        Math.max(
-                          0,
-                          Number(project.progress ?? 0)
-                        )
-                      );
+                        const progress =
+                          Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              Number(
+                                project.progress ??
+                                  0
+                              )
+                            )
+                          );
 
-                      const raid =
-                        Number(project.critical_risks ?? 0) +
-                        Number(project.open_issues ?? 0) +
-                        Number(project.overdue_actions ?? 0);
+                        const health =
+                          Math.round(
+                            Number(
+                              project.health_score ??
+                                0
+                            )
+                          );
 
-                      return (
-                        <tr
-                          key={project.id}
-                          onClick={() => setSelected(project)}
-                        >
-                          <td>
-                            <div className="project">
-                              <strong>{project.code}</strong>
+                        const raid =
+                          Number(
+                            project.critical_risks ??
+                              0
+                          ) +
+                          Number(
+                            project.open_issues ??
+                              0
+                          ) +
+                          Number(
+                            project.overdue_actions ??
+                              0
+                          );
 
-                              <span>{project.name}</span>
-                            </div>
-                          </td>
+                        return (
+                          <tr
+                            key={project.id}
+                            onClick={() =>
+                              setSelected(
+                                project
+                              )
+                            }
+                          >
+                            <td>
+                              <div className="project">
+                                <strong>
+                                  {project.code}
+                                </strong>
 
-                          <td>
-                            <span
-                              className={`health ${status}`}
-                            >
-                              <i />
-
-                              {Math.round(
-                                Number(
-                                  project.health_score ?? 0
-                                )
-                              )}
-                            </span>
-                          </td>
-
-                          <td>
-                            <div className="progress">
-                              <span>
-                                {Math.round(progress)}%
-                              </span>
-
-                              <div>
-                                <b
-                                  style={{
-                                    width: `${progress}%`,
-                                  }}
-                                />
+                                <span>
+                                  {project.name}
+                                </span>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          <td>
-                            {project.spi == null
-                              ? "—"
-                              : Number(project.spi).toFixed(2)}
-                          </td>
+                            <td>
+                              <span
+                                className={`health ${status}`}
+                              >
+                                <i />
 
-                          <td>
-                            {project.days_to_go_live == null
-                              ? "—"
-                              : `${Math.round(
+                                <strong>
+                                  {health}
+                                </strong>
+
+                                <small>
+                                  {statusText(
+                                    project.health_status
+                                  )}
+                                </small>
+                              </span>
+                            </td>
+
+                            <td>
+                              <span className="phase">
+                                {project.current_phase ||
+                                  "—"}
+                              </span>
+                            </td>
+
+                            <td>
+                              <div className="progress">
+                                <span>
+                                  {Math.round(
+                                    progress
+                                  )}
+                                  %
+                                </span>
+
+                                <div>
+                                  <b
+                                    style={{
+                                      width: `${progress}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+
+                            <td>
+                              <span
+                                className={`spi ${
+                                  project.spi != null &&
                                   Number(
-                                    project.days_to_go_live
-                                  )
-                                )}d`}
-                          </td>
+                                    project.spi
+                                  ) < 1
+                                    ? "below"
+                                    : ""
+                                }`}
+                              >
+                                {project.spi ==
+                                null
+                                  ? "—"
+                                  : Number(
+                                      project.spi
+                                    ).toFixed(
+                                      2
+                                    )}
+                              </span>
+                            </td>
 
-                          <td>
-                            <span className="raid">{raid}</span>
-                          </td>
+                            <td>
+                              <span className="golive">
+                                {project.days_to_go_live ==
+                                null
+                                  ? "—"
+                                  : `${Math.round(
+                                      Number(
+                                        project.days_to_go_live
+                                      )
+                                    )}d`}
+                              </span>
+                            </td>
 
-                          <td>
-                            <ChevronRight size={18} />
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            <td>
+                              <span
+                                className={`raid ${
+                                  raid === 0
+                                    ? "empty-raid"
+                                    : ""
+                                }`}
+                              >
+                                {raid}
+                              </span>
+                            </td>
+
+                            <td>
+                              <ChevronRight
+                                size={18}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      }
+                    )}
                   </tbody>
                 </table>
               )}
@@ -426,10 +860,36 @@ function App() {
       {selected && (
         <ProjectDetail
           project={selected}
-          onClose={() => setSelected(null)}
+          onClose={() =>
+            setSelected(null)
+          }
         />
       )}
     </div>
+  );
+}
+
+function FilterButton({
+  label,
+  value,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`filter-btn ${
+        active ? "active" : ""
+      } ${value}`}
+      type="button"
+      onClick={onClick}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -440,7 +900,7 @@ function Kpi({
   tone,
 }: {
   title: string;
-  value: number;
+  value: string | number;
   subtitle: string;
   tone?: string;
 }) {
@@ -448,7 +908,9 @@ function Kpi({
     <div className="kpi">
       <span>{title}</span>
 
-      <strong className={tone || ""}>{value}</strong>
+      <strong className={tone || ""}>
+        {value}
+      </strong>
 
       <small>{subtitle}</small>
     </div>
@@ -462,7 +924,9 @@ function ProjectDetail({
   project: Project;
   onClose: () => void;
 }) {
-  const status = statusLabel(project.health_status);
+  const status = statusLabel(
+    project.health_status
+  );
 
   const health = Math.round(
     Number(project.health_score ?? 0)
@@ -470,7 +934,10 @@ function ProjectDetail({
 
   const progress = Math.min(
     100,
-    Math.max(0, Number(project.progress ?? 0))
+    Math.max(
+      0,
+      Number(project.progress ?? 0)
+    )
   );
 
   const criticalRisks = Number(
@@ -508,7 +975,9 @@ function ProjectDetail({
     >
       <aside
         className="drawer executive-drawer"
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event) =>
+          event.stopPropagation()
+        }
       >
         <div className="drawer-head">
           <div>
@@ -558,7 +1027,9 @@ function ProjectDetail({
         <section className="executive-kpis">
           <ExecutiveMetric
             label="Progresso"
-            value={`${Math.round(progress)}%`}
+            value={`${Math.round(
+              progress
+            )}%`}
             highlight
           />
 
@@ -567,24 +1038,32 @@ function ProjectDetail({
             value={
               project.spi == null
                 ? "—"
-                : Number(project.spi).toFixed(2)
+                : Number(
+                    project.spi
+                  ).toFixed(2)
             }
           />
 
           <ExecutiveMetric
             label="Go-Live"
             value={
-              project.days_to_go_live == null
+              project.days_to_go_live ==
+              null
                 ? "—"
                 : `${Math.round(
-                    Number(project.days_to_go_live)
+                    Number(
+                      project.days_to_go_live
+                    )
                   )}d`
             }
           />
 
           <ExecutiveMetric
             label="Fase atual"
-            value={project.current_phase || "—"}
+            value={
+              project.current_phase ||
+              "—"
+            }
           />
         </section>
 
@@ -603,11 +1082,13 @@ function ProjectDetail({
             className={`executive-reading ${status}`}
           >
             <div className="reading-icon">
-              {status === "critical"
-                ? "!"
-                : status === "attention"
-                  ? "!"
-                  : "✓"}
+              {status === "healthy" ? (
+                <CheckCircle2
+                  size={16}
+                />
+              ) : (
+                "!"
+              )}
             </div>
 
             <div>
@@ -619,7 +1100,9 @@ function ProjectDetail({
                     : "Projeto sob controle"}
               </strong>
 
-              <p>{healthDescription}</p>
+              <p>
+                {healthDescription}
+              </p>
             </div>
           </div>
         </section>
@@ -631,7 +1114,9 @@ function ProjectDetail({
                 HEALTH DRIVERS
               </span>
 
-              <h3>Por que este Health?</h3>
+              <h3>
+                Por que este Health?
+              </h3>
             </div>
           </div>
 
@@ -658,7 +1143,9 @@ function ProjectDetail({
 
             <Driver
               label="Ações atrasadas"
-              value={overdueActions}
+              value={
+                overdueActions
+              }
               tone={
                 overdueActions > 0
                   ? "attention"
@@ -685,7 +1172,9 @@ function ProjectDetail({
                 DELIVERY
               </span>
 
-              <h3>Progresso do projeto</h3>
+              <h3>
+                Progresso do projeto
+              </h3>
             </div>
 
             <strong className="section-value">
@@ -706,7 +1195,9 @@ function ProjectDetail({
             <div className="progress-caption">
               <span>Realizado</span>
 
-              <span>{Math.round(progress)}%</span>
+              <span>
+                {Math.round(progress)}%
+              </span>
             </div>
           </div>
         </section>
@@ -731,8 +1222,9 @@ function ProjectDetail({
               </strong>
 
               <span>
-                Dados detalhados serão conectados ao módulo
-                de cronograma.
+                Dados detalhados serão
+                conectados ao módulo de
+                cronograma.
               </span>
             </div>
 
@@ -749,7 +1241,10 @@ function ProjectDetail({
               <span>Realizado</span>
 
               <strong>
-                {Math.round(progress)}%
+                {Math.round(
+                  progress
+                )}
+                %
               </strong>
             </div>
 
@@ -759,7 +1254,9 @@ function ProjectDetail({
               <strong>
                 {project.spi == null
                   ? "—"
-                  : Number(project.spi).toFixed(2)}
+                  : Number(
+                      project.spi
+                    ).toFixed(2)}
               </strong>
             </div>
           </div>
@@ -784,28 +1281,38 @@ function ProjectDetail({
             <RaidCard
               label="Riscos"
               value={criticalRisks}
-              icon={<ShieldAlert size={18} />}
+              icon={
+                <ShieldAlert size={18} />
+              }
               tone="critical"
             />
 
             <RaidCard
               label="Issues"
               value={openIssues}
-              icon={<AlertTriangle size={18} />}
+              icon={
+                <AlertTriangle size={18} />
+              }
               tone="attention"
             />
 
             <RaidCard
               label="Ações"
-              value={overdueActions}
-              icon={<Clock3 size={18} />}
+              value={
+                overdueActions
+              }
+              icon={
+                <Clock3 size={18} />
+              }
               tone="attention"
             />
 
             <RaidCard
               label="Decisões"
               value="—"
-              icon={<Target size={18} />}
+              icon={
+                <Target size={18} />
+              }
             />
           </div>
         </section>
@@ -844,11 +1351,13 @@ function ProjectDetail({
           </div>
 
           <div className="placeholder-note">
-            <CircleDollarSign size={18} />
+            <CircleDollarSign
+              size={18}
+            />
 
             <span>
-              Indicadores financeiros serão conectados ao
-              módulo Financeiro.
+              Indicadores financeiros serão
+              conectados ao módulo Financeiro.
             </span>
           </div>
         </section>
@@ -890,8 +1399,8 @@ function ProjectDetail({
             <Users size={18} />
 
             <span>
-              Dados de recursos serão conectados ao módulo
-              de Recursos.
+              Dados de recursos serão conectados
+              ao módulo de Recursos.
             </span>
           </div>
         </section>
@@ -915,8 +1424,9 @@ function ProjectDetail({
             </strong>
 
             <span>
-              Os próximos marcos serão apresentados quando
-              o módulo de cronograma estiver conectado.
+              Os próximos marcos serão apresentados
+              quando o módulo de cronograma estiver
+              conectado.
             </span>
           </div>
         </section>
@@ -924,21 +1434,19 @@ function ProjectDetail({
         <section className="executive-section project-info">
           <div>
             <span>Projeto</span>
-
             <strong>{project.code}</strong>
           </div>
 
           <div>
             <span>Status</span>
-
             <strong>{currentStatus}</strong>
           </div>
 
           <div>
             <span>Fase</span>
-
             <strong>
-              {project.current_phase || "—"}
+              {project.current_phase ||
+                "—"}
             </strong>
           </div>
 
@@ -946,10 +1454,13 @@ function ProjectDetail({
             <span>Go-Live</span>
 
             <strong>
-              {project.days_to_go_live == null
+              {project.days_to_go_live ==
+              null
                 ? "—"
                 : `${Math.round(
-                    Number(project.days_to_go_live)
+                    Number(
+                      project.days_to_go_live
+                    )
                   )} dias`}
             </strong>
           </div>
@@ -1043,3 +1554,4 @@ function RaidCard({
 }
 
 export default App;
+```
