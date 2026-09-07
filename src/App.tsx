@@ -195,12 +195,19 @@ function App() {
       .eq("id", userId)
       .single();
 
-    if (error) {
-      console.error("Erro ao carregar profile:", error);
-      setProfile(null);
-      setProfileLoading(false);
-      return;
-    }
+  if (error) {
+  console.error("Erro ao carregar profile:", error);
+
+  setProfile(null);
+  setProfileError(
+    error.message || "Não foi possível carregar seu perfil."
+  );
+
+  setProfileLoading(false);
+  return;
+  }
+
+setProfileError("");
 
     setProfile(data as Profile);
     setProfileLoading(false);
