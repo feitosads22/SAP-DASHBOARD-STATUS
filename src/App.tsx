@@ -1,1580 +1,979 @@
-import { useEffect, useState } from "react";
-import {
-  AlertTriangle,
-  CalendarDays,
-  ChevronRight,
-  CircleDollarSign,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  RefreshCw,
-  ShieldAlert,
-  Users,
-  X,
-  LockKeyhole,
-  UserCircle,
-} from "lucide-react";
-
-import {
-  supabase,
-  supabaseConfigured,
-} from "./lib/supabase";
-
-import type { Session } from "@supabase/supabase-js";
-
-type Project = {
-  id: string;
-  code: string;
-  name: string;
-  status?: string;
-  current_phase?: string;
-  progress?: number;
-  spi?: number;
-  health_score?: number;
-  health_status?: string;
-  critical_risks?: number;
-  open_issues?: number;
-  overdue_actions?: number;
-  days_to_go_live?: number;
-};
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  role: string;
-  organization_id: string | null;
-  active: boolean;
-};
-
-const demoProjects: Project[] = [
-  {
-    id: "demo-1",
-    code: "DEMO-001",
-    name: "Projeto SAP — conexão pendente",
-    status: "in_progress",
-    progress: 0,
-    spi: 1,
-    health_score: 80,
-    health_status: "healthy",
-    critical_risks: 0,
-    open_issues: 0,
-    overdue_actions: 0,
-    days_to_go_live: 120,
-  },
-];
-
-function statusLabel(status?: string) {
-  const s = (status || "").toLowerCase();
-
-  if (
-    s.includes("critical") ||
-    s.includes("red")
-  ) {
-    return "critical";
-  }
-
-  if (
-    s.includes("attention") ||
-    s.includes("warning") ||
-    s.includes("yellow")
-  ) {
-    return "attention";
-  }
-
-  return "healthy";
+* {
+  box-sizing: border-box;
 }
 
-function roleLabel(role?: string) {
-  switch ((role || "").toLowerCase()) {
-    case "head":
-      return "HEAD";
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
 
-    case "project_manager":
-      return "PROJECT MANAGER";
+body {
+  background: #f5f7fa;
+  color: #0f172a;
+}
 
-    case "pmo_admin":
-      return "PMO ADMIN";
+button,
+input {
+  font: inherit;
+}
 
-    default:
-      return role || "USUÁRIO";
+button {
+  cursor: pointer;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  background: #f5f7fa;
+}
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.sidebar {
+  width: 238px;
+  min-height: 100vh;
+  background: #101827;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 30;
+}
+
+.brand {
+  min-height: 72px;
+  padding: 18px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  background: white;
+  color: #0f172a;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.brand-mark.large {
+  width: 52px;
+  height: 52px;
+  font-size: 15px;
+  margin: 0 auto 18px;
+}
+
+.brand strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.brand span {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.sidebar nav {
+  padding: 8px 10px;
+}
+
+.nav-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  min-height: 42px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 12px;
+  text-align: left;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.nav-item:hover {
+  background: #182334;
+  color: white;
+}
+
+.nav-item.active {
+  background: #202c3e;
+  color: white;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px 10px 18px;
+}
+
+.user-profile {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 10px 8px;
+  margin-bottom: 10px;
+  border-top: 1px solid #243043;
+  border-bottom: 1px solid #243043;
+}
+
+.user-profile strong {
+  display: block;
+  color: white;
+  font-size: 12px;
+}
+
+.user-profile span {
+  display: block;
+  color: #94a3b8;
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #94a3b8;
+  font-size: 10px;
+  padding: 7px 8px 12px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.dot.on {
+  background: #22c55e;
+}
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+
+main {
+  width: calc(100% - 238px);
+  margin-left: 238px;
+  min-height: 100vh;
+}
+
+.topbar {
+  height: 72px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  margin-bottom: 5px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.role-badge {
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 20px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.refresh {
+  height: 38px;
+  border: 1px solid #dbe2ea;
+  background: white;
+  border-radius: 9px;
+  padding: 0 14px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh:hover {
+  background: #f8fafc;
+}
+
+.refresh:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* =========================================================
+   CONTENT
+   ========================================================= */
+
+.content {
+  padding: 34px 38px 50px;
+}
+
+.welcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.welcome h2 {
+  margin: 0;
+  font-size: 27px;
+  color: #0f172a;
+}
+
+.welcome p {
+  margin: 7px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.date {
+  color: #64748b;
+  font-size: 12px;
+}
+
+/* =========================================================
+   KPIS
+   ========================================================= */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.kpi {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  min-height: 130px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi > span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.kpi strong {
+  margin-top: 12px;
+  font-size: 28px;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.kpi strong.healthy {
+  color: #059669;
+}
+
+.kpi strong.attention {
+  color: #c08400;
+}
+
+.kpi strong.critical {
+  color: #dc2626;
+}
+
+.kpi small {
+  margin-top: auto;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+/* =========================================================
+   PANEL
+   ========================================================= */
+
+.panel {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.panel-head {
+  min-height: 80px;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.panel-head p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.count {
+  background: #f8fafc;
+  color: #64748b;
+  border-radius: 20px;
+  padding: 7px 11px;
+  font-size: 10px;
+}
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  background: #f8fafc;
+}
+
+th {
+  height: 40px;
+  padding: 0 18px;
+  text-align: left;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+td {
+  padding: 15px 18px;
+  border-top: 1px solid #eef2f7;
+  font-size: 12px;
+  color: #334155;
+}
+
+tbody tr {
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.project strong {
+  display: block;
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.project span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+  margin-top: 4px;
+}
+
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.health i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.health.healthy i {
+  background: #10b981;
+}
+
+.health.attention i {
+  background: #f59e0b;
+}
+
+.health.critical i {
+  background: #ef4444;
+}
+
+.health.healthy {
+  color: #059669;
+}
+
+.health.attention {
+  color: #b77900;
+}
+
+.health.critical {
+  color: #dc2626;
+}
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 120px;
+}
+
+.progress > span {
+  width: 32px;
+  font-size: 11px;
+}
+
+.progress > div {
+  width: 75px;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.progress b {
+  display: block;
+  height: 100%;
+  background: #64748b;
+  border-radius: inherit;
+}
+
+.raid {
+  min-width: 24px;
+  display: inline-flex;
+  justify-content: center;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: #fff1f2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.empty {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* =========================================================
+   DRAWER
+   ========================================================= */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 100;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: min(520px, 92vw);
+  height: 100%;
+  background: white;
+  box-shadow: -10px 0 40px rgba(15, 23, 42, 0.15);
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.drawer-head h2 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.drawer-head p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.hero-status {
+  margin-top: 28px;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-status.healthy {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.hero-status.attention {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.hero-status.critical {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.hero-status span:first-child {
+  display: block;
+  font-size: 10px;
+}
+
+.hero-status strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 28px;
+}
+
+.pill {
+  border-radius: 20px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.metric {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 15px;
+}
+
+.metric span {
+  display: block;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.metric strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 19px;
+  color: #0f172a;
+}
+
+.next {
+  margin-top: 20px;
+  padding: 18px;
+  background: #f8fafc;
+  border-radius: 10px;
+}
+
+.next h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.next p {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.icon-btn {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.icon-btn:hover {
+  background: #f1f5f9;
+}
+
+.mobile-menu,
+.mobile-close {
+  display: none;
+}
+
+/* =========================================================
+   AUTH
+   ========================================================= */
+
+.auth-screen {
+  min-height: 100vh;
+  background: #f5f7fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(430px, 100%);
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 35px;
+  box-shadow:
+    0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.auth-brand .brand-mark {
+  margin: 0;
+}
+
+.auth-brand strong {
+  display: block;
+  font-size: 15px;
+}
+
+.auth-brand span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.auth-title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.auth-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.auth-title h1 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.auth-title p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.auth-card form label {
+  display: block;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.auth-card input {
+  width: 100%;
+  height: 44px;
+  margin-top: 7px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 0 12px;
+  outline: none;
+  color: #0f172a;
+  background: white;
+}
+
+.auth-card input:focus {
+  border-color: #64748b;
+  box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.1);
+}
+
+.login-button {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #111827;
+  color: white;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.login-button:hover {
+  background: #1f2937;
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.login-error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 15px;
+}
+
+.setup-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 9px;
+  font-size: 11px;
+}
+
+.setup-banner strong,
+.setup-banner span {
+  display: block;
+}
+
+.setup-banner span {
+  margin-top: 4px;
+}
+
+.auth-footer {
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.auth-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #475569;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 22px auto 0;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-function App() {
-  const [session, setSession] = useState<Session | null>(null);
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
 
-  const [profile, setProfile] =
-    useState<Profile | null>(null);
+@media (max-width: 900px) {
 
-  const [authLoading, setAuthLoading] =
-    useState(true);
-
-  const [profileLoading, setProfileLoading] =
-    useState(false);
-
-  const [profileError, setProfileError] =
-    useState("");
-
-  const [projects, setProjects] =
-    useState<Project[]>([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [selected, setSelected] =
-    useState<Project | null>(null);
-
-  const [menuOpen, setMenuOpen] =
-    useState(false);
-
-  const [connected, setConnected] =
-    useState(false);
-
-  const [email, setEmail] =
-    useState("");
-
-  const [password, setPassword] =
-    useState("");
-
-  const [loginLoading, setLoginLoading] =
-    useState(false);
-
-  const [loginError, setLoginError] =
-    useState("");
-
-  /*
-   * =========================================================
-   * AUTHENTICATION
-   * =========================================================
-   */
-
-  useEffect(() => {
-    if (!supabaseConfigured) {
-      setAuthLoading(false);
-      return;
-    }
-
-    let mounted = true;
-
-    async function initializeAuth() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (!mounted) {
-          return;
-        }
-
-        setSession(session);
-        setAuthLoading(false);
-
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        }
-      } catch (error) {
-        console.error(
-          "Erro ao inicializar autenticação:",
-          error
-        );
-
-        if (mounted) {
-          setAuthLoading(false);
-        }
-      }
-    }
-
-    initializeAuth();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (!mounted) {
-          return;
-        }
-
-        setSession(session);
-
-        if (session?.user) {
-          await loadProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setProjects([]);
-          setProfileError("");
-        }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  /*
-   * =========================================================
-   * PROFILE
-   * =========================================================
-   */
-
-  async function loadProfile(userId: string) {
-    setProfileLoading(true);
-    setProfileError("");
-
-    try {
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("profiles")
-        .select(
-          `
-            id,
-            full_name,
-            email,
-            role,
-            organization_id,
-            active
-          `
-        )
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error(
-          "Erro ao carregar profile:",
-          error
-        );
-
-        setProfile(null);
-
-        setProfileError(
-          error.message ||
-            "Não foi possível carregar seu perfil."
-        );
-
-        setProfileLoading(false);
-        return;
-      }
-
-      if (!data) {
-        setProfile(null);
-
-        setProfileError(
-          "Seu usuário não possui um perfil cadastrado."
-        );
-
-        setProfileLoading(false);
-        return;
-      }
-
-      setProfile(data as Profile);
-      setProfileError("");
-
-      if (data.active) {
-        await loadProjects();
-      }
-    } catch (error) {
-      console.error(
-        "Erro inesperado ao carregar profile:",
-        error
-      );
-
-      setProfile(null);
-
-      setProfileError(
-        "Ocorreu um erro ao carregar seu perfil."
-      );
-    } finally {
-      setProfileLoading(false);
-    }
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
   }
 
-  /*
-   * =========================================================
-   * LOGIN
-   * =========================================================
-   */
-
-  async function handleLogin(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    setLoginError("");
-    setLoginLoading(true);
-
-    try {
-      const {
-        error,
-      } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-
-      if (error) {
-        console.error(
-          "Erro de login:",
-          error
-        );
-
-        if (
-          error.message ===
-          "Invalid login credentials"
-        ) {
-          setLoginError(
-            "E-mail ou senha inválidos."
-          );
-        } else {
-          setLoginError(
-            error.message
-          );
-        }
-
-        return;
-      }
-
-      setPassword("");
-    } catch (error) {
-      console.error(
-        "Erro inesperado no login:",
-        error
-      );
-
-      setLoginError(
-        "Não foi possível realizar o login."
-      );
-    } finally {
-      setLoginLoading(false);
-    }
+  .sidebar.open {
+    transform: translateX(0);
   }
 
-  /*
-   * =========================================================
-   * LOGOUT
-   * =========================================================
-   */
-
-  async function handleLogout() {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error(
-        "Erro ao sair:",
-        error
-      );
-    }
-
-    setSession(null);
-    setProfile(null);
-    setProjects([]);
-    setSelected(null);
-    setLoginError("");
-    setProfileError("");
+  main {
+    width: 100%;
+    margin-left: 0;
   }
 
-  /*
-   * =========================================================
-   * PROJECTS
-   * =========================================================
-   */
-
-  async function loadProjects() {
-    setLoading(true);
-
-    if (!supabaseConfigured) {
-      setConnected(false);
-      setProjects(demoProjects);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const {
-        data,
-        error,
-      } = await supabase
-        .from("v_project_dashboard")
-        .select("*")
-        .order(
-          "health_score",
-          {
-            ascending: true,
-          }
-        );
-
-      if (error) {
-        console.error(
-          "Erro ao carregar projetos:",
-          error
-        );
-
-        setConnected(false);
-        setProjects([]);
-
-        return;
-      }
-
-      setConnected(true);
-      setProjects(
-        (data || []) as Project[]
-      );
-    } catch (error) {
-      console.error(
-        "Erro inesperado ao carregar projetos:",
-        error
-      );
-
-      setConnected(false);
-      setProjects([]);
-    } finally {
-      setLoading(false);
-    }
+  .mobile-menu {
+    display: inline-flex;
+    color: #334155;
+    margin-right: 8px;
   }
 
-  /*
-   * =========================================================
-   * INITIAL LOADING
-   * =========================================================
-   */
-
-  if (authLoading) {
-    return (
-      <div className="auth-screen">
-        <div className="auth-card">
-
-          <div className="brand-mark large">
-            SAP
-          </div>
-
-          <h1>
-            SAP PMO Control Tower
-          </h1>
-
-          <p>
-            Inicializando ambiente...
-          </p>
-
-          <div className="auth-spinner" />
-
-        </div>
-      </div>
-    );
+  .mobile-close {
+    display: inline-flex;
+    margin-left: auto;
   }
 
-  /*
-   * =========================================================
-   * SUPABASE CONFIGURATION
-   * =========================================================
-   */
-
-  if (!supabaseConfigured) {
-    return (
-      <div className="auth-screen">
-
-        <div className="auth-card">
-
-          <div className="brand-mark large">
-            SAP
-          </div>
-
-          <h1>
-            SAP PMO Control Tower
-          </h1>
-
-          <div className="setup-banner">
-
-            <AlertTriangle size={18} />
-
-            <div>
-
-              <strong>
-                Supabase não configurado.
-              </strong>
-
-              <span>
-                Verifique as variáveis
-                VITE_SUPABASE_URL e
-                VITE_SUPABASE_ANON_KEY
-                no Vercel.
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-    );
+  .topbar {
+    padding: 0 20px;
   }
 
-  /*
-   * =========================================================
-   * LOGIN SCREEN
-   * =========================================================
-   */
-
-  if (!session) {
-    return (
-      <div className="auth-screen">
-
-        <div className="auth-card">
-
-          <div className="auth-brand">
-
-            <div className="brand-mark large">
-              SAP
-            </div>
-
-            <div>
-
-              <strong>
-                SAP PMO
-              </strong>
-
-              <span>
-                Control Tower
-              </span>
-
-            </div>
-
-          </div>
-
-          <div className="auth-title">
-
-            <div className="auth-icon">
-              <LockKeyhole size={22} />
-            </div>
-
-            <div>
-
-              <h1>
-                Acesso ao Portal
-              </h1>
-
-              <p>
-                Entre para acessar o
-                portfolio de projetos SAP.
-              </p>
-
-            </div>
-
-          </div>
-
-          <form onSubmit={handleLogin}>
-
-            <label>
-
-              E-mail
-
-              <input
-                type="email"
-                value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
-                placeholder="seu@email.com"
-                required
-                autoComplete="email"
-              />
-
-            </label>
-
-            <label>
-
-              Senha
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
-                placeholder="Digite sua senha"
-                required
-                autoComplete="current-password"
-              />
-
-            </label>
-
-            {loginError && (
-              <div className="login-error">
-
-                <AlertTriangle size={17} />
-
-                <span>
-                  {loginError}
-                </span>
-
-              </div>
-            )}
-
-            <button
-              className="login-button"
-              type="submit"
-              disabled={loginLoading}
-            >
-              {loginLoading
-                ? "Entrando..."
-                : "Entrar no sistema"}
-            </button>
-
-          </form>
-
-          <div className="auth-footer">
-
-            <span>
-              PMO Control Tower
-            </span>
-
-            <span>
-              •
-            </span>
-
-            <span>
-              Governança SAP
-            </span>
-
-          </div>
-
-        </div>
-
-      </div>
-    );
+  .content {
+    padding: 25px 20px;
   }
 
-  /*
-   * =========================================================
-   * PROFILE ERROR
-   * =========================================================
-   */
-
-  if (profileError) {
-    return (
-      <div className="auth-screen">
-
-        <div className="auth-card">
-
-          <div className="brand-mark large">
-            SAP
-          </div>
-
-          <h1>
-            Erro ao carregar perfil
-          </h1>
-
-          <p>
-            O login foi realizado, mas o
-            sistema não conseguiu carregar
-            suas permissões.
-          </p>
-
-          <div className="login-error">
-
-            <AlertTriangle size={17} />
-
-            <span>
-              {profileError}
-            </span>
-
-          </div>
-
-          <button
-            className="login-button"
-            onClick={handleLogout}
-          >
-            Voltar ao login
-          </button>
-
-        </div>
-
-      </div>
-    );
+  .kpis {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  /*
-   * =========================================================
-   * PROFILE LOADING
-   * =========================================================
-   */
-
-  if (profileLoading || !profile) {
-    return (
-      <div className="auth-screen">
-
-        <div className="auth-card">
-
-          <div className="brand-mark large">
-            SAP
-          </div>
-
-          <h1>
-            Carregando perfil...
-          </h1>
-
-          <p>
-            Validando suas permissões
-            de acesso.
-          </p>
-
-          <div className="auth-spinner" />
-
-        </div>
-
-      </div>
-    );
+  .welcome {
+    align-items: flex-start;
+    gap: 20px;
   }
 
-  /*
-   * =========================================================
-   * INACTIVE USER
-   * =========================================================
-   */
-
-  if (!profile.active) {
-    return (
-      <div className="auth-screen">
-
-        <div className="auth-card">
-
-          <div className="brand-mark large">
-            SAP
-          </div>
-
-          <h1>
-            Acesso bloqueado
-          </h1>
-
-          <p>
-            Seu usuário está inativo.
-            Entre em contato com o
-            administrador do PMO.
-          </p>
-
-          <button
-            className="login-button"
-            onClick={handleLogout}
-          >
-            Sair
-          </button>
-
-        </div>
-
-      </div>
-    );
+  .date {
+    white-space: nowrap;
   }
-
-  /*
-   * =========================================================
-   * KPI CALCULATIONS
-   * =========================================================
-   */
-
-  const healthy =
-    projects.filter(
-      (p) =>
-        statusLabel(
-          p.health_status
-        ) === "healthy"
-    ).length;
-
-  const attention =
-    projects.filter(
-      (p) =>
-        statusLabel(
-          p.health_status
-        ) === "attention"
-    ).length;
-
-  const critical =
-    projects.filter(
-      (p) =>
-        statusLabel(
-          p.health_status
-        ) === "critical"
-    ).length;
-
-  /*
-   * =========================================================
-   * MAIN DASHBOARD
-   * =========================================================
-   */
-
-  return (
-    <div className="app">
-
-      {/* =====================================================
-          SIDEBAR
-          ===================================================== */}
-
-      <aside
-        className={`sidebar ${
-          menuOpen
-            ? "open"
-            : ""
-        }`}
-      >
-
-        <div className="brand">
-
-          <div className="brand-mark">
-            SAP
-          </div>
-
-          <div>
-
-            <strong>
-              PMO Control Tower
-            </strong>
-
-            <span>
-              Portfolio Governance
-            </span>
-
-          </div>
-
-          <button
-            className="icon-btn mobile-close"
-            onClick={() =>
-              setMenuOpen(false)
-            }
-          >
-            <X size={18} />
-          </button>
-
-        </div>
-
-        <nav>
-
-          <button
-            className="nav-item active"
-          >
-            <LayoutDashboard size={18} />
-            Portfolio
-          </button>
-
-          <button className="nav-item">
-            <CalendarDays size={18} />
-            Cronograma
-          </button>
-
-          <button className="nav-item">
-            <ShieldAlert size={18} />
-            RAID
-          </button>
-
-          <button className="nav-item">
-            <CircleDollarSign size={18} />
-            Financeiro
-          </button>
-
-          <button className="nav-item">
-            <Users size={18} />
-            Recursos
-          </button>
-
-        </nav>
-
-        <div className="sidebar-footer">
-
-          {/* USER */}
-
-          <div className="user-profile">
-
-            <UserCircle size={19} />
-
-            <div>
-
-              <strong>
-                {profile.full_name ||
-                  profile.email}
-              </strong>
-
-              <span>
-                {roleLabel(
-                  profile.role
-                )}
-              </span>
-
-            </div>
-
-          </div>
-
-          {/* CONNECTION */}
-
-          <div className="connection">
-
-            <span
-              className={
-                connected
-                  ? "dot on"
-                  : "dot"
-              }
-            />
-
-            {connected
-              ? "Supabase conectado"
-              : "Sem conexão com dados"}
-
-          </div>
-
-          {/* LOGOUT */}
-
-          <button
-            className="nav-item logout"
-            onClick={handleLogout}
-          >
-            <LogOut size={18} />
-            Sair
-          </button>
-
-        </div>
-
-      </aside>
-
-      {/* =====================================================
-          MAIN
-          ===================================================== */}
-
-      <main>
-
-        <header className="topbar">
-
-          <button
-            className="icon-btn mobile-menu"
-            onClick={() =>
-              setMenuOpen(true)
-            }
-          >
-            <Menu size={20} />
-          </button>
-
-          <div>
-
-            <div className="eyebrow">
-              EXECUTIVE PORTFOLIO
-            </div>
-
-            <h1>
-              Visão geral
-            </h1>
-
-          </div>
-
-          <div className="topbar-actions">
-
-            <div className="role-badge">
-              {roleLabel(
-                profile.role
-              )}
-            </div>
-
-            <button
-              className="refresh"
-              onClick={loadProjects}
-              disabled={loading}
-            >
-
-              <RefreshCw
-                size={16}
-                className={
-                  loading
-                    ? "spin"
-                    : ""
-                }
-              />
-
-              Atualizar
-
-            </button>
-
-          </div>
-
-        </header>
-
-        {/* ===================================================
-            CONTENT
-            =================================================== */}
-
-        <section className="content">
-
-          <div className="welcome">
-
-            <div>
-
-              <h2>
-                Portfolio SAP
-              </h2>
-
-              <p>
-                Acompanhe a saúde dos
-                projetos em um único lugar.
-              </p>
-
-            </div>
-
-            <div className="date">
-
-              {new Date().toLocaleDateString(
-                "pt-BR",
-                {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                }
-              )}
-
-            </div>
-
-          </div>
-
-          {/* =================================================
-              KPIs
-              ================================================= */}
-
-          <div className="kpis">
-
-            <Kpi
-              title="Projetos"
-              value={projects.length}
-              subtitle="No portfolio"
-            />
-
-            <Kpi
-              title="Healthy"
-              value={healthy}
-              subtitle="Dentro do esperado"
-              tone="healthy"
-            />
-
-            <Kpi
-              title="Atenção"
-              value={attention}
-              subtitle="Requer acompanhamento"
-              tone="attention"
-            />
-
-            <Kpi
-              title="Crítico"
-              value={critical}
-              subtitle="Requer ação"
-              tone="critical"
-            />
-
-          </div>
-
-          {/* =================================================
-              PROJECTS
-              ================================================= */}
-
-          <section className="panel">
-
-            <div className="panel-head">
-
-              <div>
-
-                <h3>
-                  Projetos
-                </h3>
-
-                <p>
-                  Selecione um projeto para
-                  abrir a visão executiva
-                  detalhada.
-                </p>
-
-              </div>
-
-              <span className="count">
-                {projects.length} projetos
-              </span>
-
-            </div>
-
-            <div className="table-wrap">
-
-              {loading ? (
-
-                <div className="empty">
-                  Carregando portfolio...
-                </div>
-
-              ) : projects.length === 0 ? (
-
-                <div className="empty">
-                  Nenhum projeto encontrado
-                  no dashboard.
-                </div>
-
-              ) : (
-
-                <table>
-
-                  <thead>
-
-                    <tr>
-
-                      <th>
-                        Projeto
-                      </th>
-
-                      <th>
-                        Health
-                      </th>
-
-                      <th>
-                        Progresso
-                      </th>
-
-                      <th>
-                        SPI
-                      </th>
-
-                      <th>
-                        Go-Live
-                      </th>
-
-                      <th>
-                        RAID
-                      </th>
-
-                      <th>
-                      </th>
-
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {projects.map(
-                      (p) => {
-
-                        const st =
-                          statusLabel(
-                            p.health_status
-                          );
-
-                        const progress =
-                          Math.min(
-                            100,
-                            Math.max(
-                              0,
-                              Number(
-                                p.progress ??
-                                  0
-                              )
-                            )
-                          );
-
-                        return (
-
-                          <tr
-                            key={p.id}
-                            onClick={() =>
-                              setSelected(
-                                p
-                              )
-                            }
-                          >
-
-                            <td>
-
-                              <div className="project">
-
-                                <strong>
-                                  {p.code}
-                                </strong>
-
-                                <span>
-                                  {p.name}
-                                </span>
-
-                              </div>
-
-                            </td>
-
-                            <td>
-
-                              <span
-                                className={`health ${st}`}
-                              >
-
-                                <i />
-
-                                {Math.round(
-                                  Number(
-                                    p.health_score ??
-                                      0
-                                  )
-                                )}
-
-                              </span>
-
-                            </td>
-
-                            <td>
-
-                              <div className="progress">
-
-                                <span>
-                                  {Math.round(
-                                    progress
-                                  )}
-                                  %
-                                </span>
-
-                                <div>
-
-                                  <b
-                                    style={{
-                                      width: `${progress}%`,
-                                    }}
-                                  />
-
-                                </div>
-
-                              </div>
-
-                            </td>
-
-                            <td>
-
-                              {p.spi == null
-                                ? "—"
-                                : Number(
-                                    p.spi
-                                  ).toFixed(
-                                    2
-                                  )}
-
-                            </td>
-
-                            <td>
-
-                              {p.days_to_go_live ==
-                              null
-                                ? "—"
-                                : `${Math.round(
-                                    Number(
-                                      p.days_to_go_live
-                                    )
-                                  )}d`}
-
-                            </td>
-
-                            <td>
-
-                              <span className="raid">
-
-                                {(p.critical_risks ??
-                                  0) +
-                                  (p.open_issues ??
-                                    0) +
-                                  (p.overdue_actions ??
-                                    0)}
-
-                              </span>
-
-                            </td>
-
-                            <td>
-
-                              <ChevronRight
-                                size={18}
-                              />
-
-                            </td>
-
-                          </tr>
-
-                        );
-                      }
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              )}
-
-            </div>
-
-          </section>
-
-        </section>
-
-      </main>
-
-      {/* =====================================================
-          PROJECT DETAIL
-          ===================================================== */}
-
-      {selected && (
-
-        <ProjectDetail
-          project={selected}
-          onClose={() =>
-            setSelected(null)
-          }
-        />
-
-      )}
-
-    </div>
-  );
 }
 
-/*
- * ===========================================================
- * KPI COMPONENT
- * ===========================================================
- */
+@media (max-width: 600px) {
 
-function Kpi({
-  title,
-  value,
-  subtitle,
-  tone,
-}: {
-  title: string;
-  value: number;
-  subtitle: string;
-  tone?: string;
-}) {
-  return (
-    <div className="kpi">
+  .topbar {
+    height: 64px;
+  }
 
-      <span>
-        {title}
-      </span>
+  .topbar h1 {
+    font-size: 18px;
+  }
 
-      <strong
-        className={tone || ""}
-      >
-        {value}
-      </strong>
+  .role-badge {
+    display: none;
+  }
 
-      <small>
-        {subtitle}
-      </small>
+  .refresh {
+    padding: 0 10px;
+  }
 
-    </div>
-  );
+  .content {
+    padding: 22px 14px;
+  }
+
+  .welcome {
+    display: block;
+  }
+
+  .date {
+    margin-top: 12px;
+  }
+
+  .welcome h2 {
+    font-size: 23px;
+  }
+
+  .kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .kpi {
+    min-height: 115px;
+    padding: 15px;
+  }
+
+  .kpi strong {
+    font-size: 24px;
+  }
+
+  .panel-head {
+    padding: 16px;
+  }
+
+  th,
+  td {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .auth-card {
+    padding: 25px;
+  }
+
+  .drawer {
+    width: 100%;
+    padding: 22px;
+  }
 }
-
-/*
- * ===========================================================
- * PROJECT DETAIL
- * ===========================================================
- */
-
-function ProjectDetail({
-  project,
-  onClose,
-}: {
-  project: Project;
-  onClose: () => void;
-}) {
-
-  const st =
-    statusLabel(
-      project.health_status
-    );
-
-  return (
-
-    <div
-      className="drawer-backdrop"
-      onClick={onClose}
-    >
-
-      <aside
-        className="drawer"
-        onClick={(e) =>
-          e.stopPropagation()
-        }
-      >
-
-        <div className="drawer-head">
-
-          <div>
-
-            <div className="eyebrow">
-              PROJECT DETAIL
-            </div>
-
-            <h2>
-              {project.code}
-            </h2>
-
-            <p>
-              {project.name}
-            </p>
-
-          </div>
-
-          <button
-            className="icon-btn"
-            onClick={onClose}
-          >
-            <X />
-          </button>
-
-        </div>
-
-        {/* HEALTH */}
-
-        <div
-          className={`hero-status ${st}`}
-        >
-
-          <div>
-
-            <span>
-              Health Score
-            </span>
-
-            <strong>
-              {Math.round(
-                Number(
-                  project.health_score ??
-                    0
-                )
-              )}
-            </strong>
-
-          </div>
-
-          <span className="pill">
-
-            {st === "critical"
-              ? "Crítico"
-              : st === "attention"
-              ? "Atenção"
-              : "Healthy"}
-
-          </span>
-
-        </div>
-
-        {/* METRICS */}
-
-        <div className="detail-grid">
-
-          <Metric
-            label="Progresso"
-            value={`${Math.round(
-              Number(
-                project.progress ??
-                  0
-              )
-            )}%`}
-          />
-
-          <Metric
-            label="SPI"
-            value={
-              project.spi == null
-                ? "—"
-                : Number(
-                    project.spi
-                  ).toFixed(2)
-            }
-          />
-
-          <Metric
-            label="Go-Live"
-            value={
-              project.days_to_go_live ==
-              null
-                ? "—"
-                : `${Math.round(
-                    Number(
-                      project.days_to_go_live
-                    )
-                  )} dias`
-            }
-          />
-
-          <Metric
-            label="Riscos críticos"
-            value={
-              project.critical_risks ??
-              0
-            }
-          />
-
-          <Metric
-            label="Issues abertas"
-            value={
-              project.open_issues ??
-              0
-            }
-          />
-
-          <Metric
-            label="Ações atrasadas"
-            value={
-              project.overdue_actions ??
-              0
-            }
-          />
-
-        </div>
-
-        {/* NEXT EVOLUTION */}
-
-        <div className="next">
-
-          <h3>
-            Próxima evolução
-          </h3>
-
-          <p>
-            Esta área será expandida com
-            Cronograma, RAID, Financeiro,
-            Recursos, Testes, Cutover e
-            atualizações do gerente.
-          </p>
-
-        </div>
-
-      </aside>
-
-    </div>
-  );
-}
-
-/*
- * ===========================================================
- * METRIC COMPONENT
- * ===========================================================
- */
-
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="metric">
-
-      <span>
-        {label}
-      </span>
-
-      <strong>
-        {value}
-      </strong>
-
-    </div>
-  );
-}
-
-export default App;
