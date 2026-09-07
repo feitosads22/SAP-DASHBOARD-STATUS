@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CalendarDays,
   ChevronRight,
+  ChevronDown,
   CircleDollarSign,
   LayoutDashboard,
   LogOut,
