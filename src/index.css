@@ -1,3 +1,4 @@
+```css
 * {
   box-sizing: border-box;
 }
@@ -38,7 +39,9 @@ tr {
   background: #f5f7fa;
 }
 
-/* SIDEBAR */
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
 
 .sidebar {
   width: 238px;
@@ -66,6 +69,7 @@ tr {
 .brand-mark {
   width: 40px;
   height: 40px;
+  flex-shrink: 0;
   border-radius: 10px;
   background: white;
   color: #087f5b;
@@ -105,6 +109,9 @@ tr {
   border-radius: 9px;
   margin-bottom: 5px;
   text-align: left;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .nav-item:hover {
@@ -141,9 +148,12 @@ tr {
 
 .dot.on {
   background: #20c997;
+  box-shadow: 0 0 0 3px rgba(32, 201, 151, 0.1);
 }
 
-/* MAIN */
+/* =========================================================
+   MAIN
+   ========================================================= */
 
 main {
   width: calc(100% - 238px);
@@ -159,6 +169,9 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .topbar-left {
@@ -190,13 +203,17 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: all 0.15s ease;
 }
 
 .refresh:hover {
   background: #f8fafc;
+  border-color: #c7ced9;
 }
 
-/* CONTENT */
+/* =========================================================
+   CONTENT
+   ========================================================= */
 
 .content {
   padding: 32px 36px 50px;
@@ -228,7 +245,9 @@ main {
   font-size: 12px;
 }
 
-/* KPI */
+/* =========================================================
+   KPI
+   ========================================================= */
 
 .kpis {
   display: grid;
@@ -244,6 +263,14 @@ main {
   padding: 22px 20px;
   min-height: 125px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.02);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.kpi:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(16, 24, 40, 0.06);
 }
 
 .kpi > span {
@@ -277,7 +304,9 @@ main {
   font-size: 11px;
 }
 
-/* PANEL */
+/* =========================================================
+   PANEL
+   ========================================================= */
 
 .panel {
   background: white;
@@ -313,6 +342,7 @@ main {
   padding: 7px 11px;
   font-size: 11px;
   color: #667085;
+  white-space: nowrap;
 }
 
 .table-wrap {
@@ -342,8 +372,16 @@ td {
   color: #344054;
 }
 
+tbody tr {
+  transition: background 0.12s ease;
+}
+
 tbody tr:hover {
   background: #fafcff;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .project strong {
@@ -359,7 +397,9 @@ tbody tr:hover {
   font-size: 11px;
 }
 
-/* HEALTH */
+/* =========================================================
+   HEALTH
+   ========================================================= */
 
 .health {
   display: inline-flex;
@@ -384,7 +424,21 @@ tbody tr:hover {
   background: #f04438;
 }
 
-/* PROGRESS */
+.health.healthy {
+  color: #067647;
+}
+
+.health.attention {
+  color: #b54708;
+}
+
+.health.critical {
+  color: #b42318;
+}
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
 
 .progress {
   display: flex;
@@ -409,9 +463,12 @@ tbody tr:hover {
   height: 100%;
   background: #667085;
   border-radius: 10px;
+  transition: width 0.3s ease;
 }
 
-/* RAID */
+/* =========================================================
+   RAID
+   ========================================================= */
 
 .raid {
   display: inline-flex;
@@ -427,7 +484,9 @@ tbody tr:hover {
   font-weight: 700;
 }
 
-/* EMPTY */
+/* =========================================================
+   EMPTY
+   ========================================================= */
 
 .empty {
   padding: 60px 20px;
@@ -436,7 +495,9 @@ tbody tr:hover {
   font-size: 13px;
 }
 
-/* DRAWER */
+/* =========================================================
+   DRAWER
+   ========================================================= */
 
 .drawer-backdrop {
   position: fixed;
@@ -445,6 +506,7 @@ tbody tr:hover {
   background: rgba(16, 24, 40, 0.45);
   display: flex;
   justify-content: flex-end;
+  animation: backdropIn 0.18s ease;
 }
 
 .drawer {
@@ -454,6 +516,12 @@ tbody tr:hover {
   overflow-y: auto;
   padding: 28px;
   box-shadow: -10px 0 30px rgba(16, 24, 40, 0.12);
+  animation: drawerIn 0.2s ease;
+}
+
+.executive-drawer {
+  width: min(680px, 100%);
+  padding: 28px 30px 34px;
 }
 
 .drawer-head {
@@ -465,17 +533,20 @@ tbody tr:hover {
 .drawer-head h2 {
   margin: 6px 0 4px;
   font-size: 25px;
+  color: #101828;
 }
 
 .drawer-head p {
   margin: 0;
   color: #667085;
   font-size: 13px;
+  line-height: 1.5;
 }
 
 .icon-btn {
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
   border: 1px solid #d9dee7;
   border-radius: 8px;
   background: white;
@@ -483,108 +554,632 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   color: #344054;
+  transition: all 0.15s ease;
 }
 
-.hero-status {
+.icon-btn:hover {
+  background: #f8fafc;
+  border-color: #c7ced9;
+}
+
+/* =========================================================
+   EXECUTIVE HEALTH
+   ========================================================= */
+
+.executive-health {
   margin-top: 25px;
-  padding: 20px;
-  border-radius: 12px;
-  background: #ecfdf3;
+  padding: 23px;
+  border-radius: 14px;
+  border: 1px solid #d1fadf;
+  background: linear-gradient(
+    135deg,
+    #ecfdf3 0%,
+    #f7fef9 100%
+  );
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
 }
 
-.hero-status.attention {
-  background: #fffaeb;
+.executive-health.attention {
+  border-color: #fedf89;
+  background: linear-gradient(
+    135deg,
+    #fffaeb 0%,
+    #fffdf6 100%
+  );
 }
 
-.hero-status.critical {
-  background: #fef3f2;
+.executive-health.critical {
+  border-color: #fecdca;
+  background: linear-gradient(
+    135deg,
+    #fef3f2 0%,
+    #fffafa 100%
+  );
 }
 
-.hero-status span:first-child {
-  display: block;
+.health-main {
+  min-width: 0;
+}
+
+.health-label {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.health-number {
+  color: #101828;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 800;
+  margin-top: 7px;
+}
+
+.executive-health.healthy .health-number {
+  color: #067647;
+}
+
+.executive-health.attention .health-number {
+  color: #b54708;
+}
+
+.executive-health.critical .health-number {
+  color: #b42318;
+}
+
+.health-description {
+  margin-top: 9px;
   color: #667085;
   font-size: 11px;
+  line-height: 1.5;
+  max-width: 380px;
 }
 
-.hero-status strong {
-  display: block;
-  font-size: 32px;
-  margin-top: 4px;
-}
-
-.pill {
-  padding: 7px 11px;
-  border-radius: 20px;
+.health-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
   background: #d1fadf;
   color: #067647;
   font-size: 11px;
-  font-weight: 600;
+  white-space: nowrap;
 }
 
-.hero-status.attention .pill {
+.executive-health.attention .health-status {
   background: #fef0c7;
   color: #b54708;
 }
 
-.hero-status.critical .pill {
+.executive-health.critical .health-status {
   background: #fee4e2;
   color: #b42318;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 20px;
+.health-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
-.metric {
-  padding: 17px;
+/* =========================================================
+   EXECUTIVE KPI GRID
+   ========================================================= */
+
+.executive-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.executive-metric {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #eaecf0;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.executive-metric span {
+  display: block;
+  color: #667085;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.executive-metric strong {
+  display: block;
+  margin-top: 7px;
+  color: #101828;
+  font-size: 18px;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.executive-metric.highlight {
+  border-color: #c7d7fe;
+  background: #f8faff;
+}
+
+.executive-metric.highlight strong {
+  color: #344054;
+}
+
+/* =========================================================
+   EXECUTIVE SECTIONS
+   ========================================================= */
+
+.executive-section {
+  margin-top: 25px;
+}
+
+.section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+
+.section-kicker {
+  display: block;
+  color: #98a2b3;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+}
+
+.section-title h3 {
+  margin: 4px 0 0;
+  color: #101828;
+  font-size: 15px;
+}
+
+.section-value {
+  color: #101828;
+  font-size: 15px;
+}
+
+/* =========================================================
+   EXECUTIVE READING
+   ========================================================= */
+
+.executive-reading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 11px;
+  border: 1px solid #d1fadf;
+  background: #f6fef9;
+}
+
+.executive-reading.attention {
+  border-color: #fedf89;
+  background: #fffdf5;
+}
+
+.executive-reading.critical {
+  border-color: #fecdca;
+  background: #fff8f7;
+}
+
+.reading-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #d1fadf;
+  color: #067647;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.executive-reading.attention .reading-icon {
+  background: #fef0c7;
+  color: #b54708;
+}
+
+.executive-reading.critical .reading-icon {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.executive-reading strong {
+  color: #101828;
+  font-size: 12px;
+}
+
+.executive-reading p {
+  margin: 5px 0 0;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   HEALTH DRIVERS
+   ========================================================= */
+
+.health-drivers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.driver {
+  padding: 15px;
+  border: 1px solid #eaecf0;
+  border-radius: 11px;
+  background: white;
+}
+
+.driver-value {
+  color: #101828;
+  font-size: 23px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.driver span {
+  display: block;
+  margin-top: 7px;
+  color: #667085;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.driver.critical {
+  border-color: #fecdca;
+  background: #fff8f7;
+}
+
+.driver.critical .driver-value {
+  color: #b42318;
+}
+
+.driver.attention {
+  border-color: #fedf89;
+  background: #fffdf5;
+}
+
+.driver.attention .driver-value {
+  color: #b54708;
+}
+
+.driver.healthy {
+  border-color: #d1fadf;
+  background: #f6fef9;
+}
+
+.driver.healthy .driver-value {
+  color: #067647;
+}
+
+/* =========================================================
+   EXECUTIVE PROGRESS
+   ========================================================= */
+
+.executive-progress {
+  padding: 16px;
+  border: 1px solid #eaecf0;
+  border-radius: 11px;
+  background: white;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: #eaecf0;
+  overflow: hidden;
+}
+
+.progress-value {
+  height: 100%;
+  border-radius: 999px;
+  background: #667085;
+  transition: width 0.4s ease;
+}
+
+.progress-caption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 9px;
+  color: #667085;
+  font-size: 10px;
+}
+
+/* =========================================================
+   SCHEDULE
+   ========================================================= */
+
+.placeholder-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed #d0d5dd;
+  border-radius: 11px;
+  background: #fafbfc;
+  color: #667085;
+}
+
+.placeholder-card svg {
+  flex-shrink: 0;
+}
+
+.placeholder-card > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.placeholder-card strong {
+  display: block;
+  color: #344054;
+  font-size: 11px;
+}
+
+.placeholder-card span {
+  display: block;
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.placeholder-card b {
+  color: #98a2b3;
+  font-size: 18px;
+}
+
+.schedule-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.schedule-summary > div {
+  padding: 13px;
   border: 1px solid #eaecf0;
   border-radius: 10px;
 }
 
-.metric span {
+.schedule-summary span {
   display: block;
+  color: #667085;
+  font-size: 10px;
+}
+
+.schedule-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: #101828;
+  font-size: 16px;
+}
+
+/* =========================================================
+   RAID GRID
+   ========================================================= */
+
+.raid-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.raid-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #eaecf0;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+}
+
+.raid-card-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.raid-card > div:last-child {
+  min-width: 0;
+}
+
+.raid-card strong {
+  display: block;
+  color: #101828;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.raid-card span {
+  display: block;
+  margin-top: 5px;
+  color: #667085;
+  font-size: 10px;
+}
+
+.raid-card.critical {
+  border-color: #fecdca;
+  background: #fff8f7;
+}
+
+.raid-card.critical .raid-card-icon {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.raid-card.critical strong {
+  color: #b42318;
+}
+
+.raid-card.attention {
+  border-color: #fedf89;
+  background: #fffdf5;
+}
+
+.raid-card.attention .raid-card-icon {
+  background: #fef0c7;
+  color: #b54708;
+}
+
+.raid-card.attention strong {
+  color: #b54708;
+}
+
+/* =========================================================
+   FINANCIAL / RESOURCES
+   ========================================================= */
+
+.financial-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.placeholder-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #667085;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.placeholder-note svg {
+  flex-shrink: 0;
+  color: #98a2b3;
+}
+
+/* =========================================================
+   MILESTONES
+   ========================================================= */
+
+.milestone-empty {
+  min-height: 125px;
+  padding: 24px;
+  border: 1px dashed #d0d5dd;
+  border-radius: 11px;
+  background: #fafbfc;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #98a2b3;
+}
+
+.milestone-empty svg {
+  margin-bottom: 8px;
+}
+
+.milestone-empty strong {
   color: #667085;
   font-size: 11px;
 }
 
-.metric strong {
-  display: block;
-  margin-top: 7px;
-  color: #101828;
-  font-size: 20px;
+.milestone-empty span {
+  max-width: 360px;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.5;
 }
 
-.next {
-  margin-top: 22px;
-  padding: 18px;
-  background: #f8fafc;
+/* =========================================================
+   PROJECT INFO
+   ========================================================= */
+
+.project-info {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.project-info > div {
+  padding: 13px;
   border-radius: 10px;
+  background: #f8fafc;
 }
 
-.next h3 {
-  margin: 0 0 7px;
-  font-size: 14px;
-}
-
-.next p {
-  margin: 0;
+.project-info span {
+  display: block;
   color: #667085;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 9px;
 }
 
-/* MOBILE */
-
-.mobile-menu,
-.mobile-close {
-  display: none;
+.project-info strong {
+  display: block;
+  margin-top: 5px;
+  color: #101828;
+  font-size: 11px;
+  line-height: 1.35;
+  word-break: break-word;
 }
+
+/* =========================================================
+   DRAWER FOOTER
+   ========================================================= */
+
+.drawer-footer {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #eaecf0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.drawer-footer > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #98a2b3;
+  font-size: 10px;
+}
+
+.secondary-btn {
+  height: 36px;
+  padding: 0 15px;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  background: white;
+  color: #344054;
+  font-size: 11px;
+}
+
+.secondary-btn:hover {
+  background: #f8fafc;
+}
+
+/* =========================================================
+   SETUP BANNER
+   ========================================================= */
 
 .setup-banner {
   margin: 20px 36px 0;
@@ -607,6 +1202,75 @@ tbody tr:hover {
   font-size: 11px;
   margin-top: 3px;
 }
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+.mobile-menu,
+.mobile-close {
+  display: none;
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes backdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawerIn {
+  from {
+    transform: translateX(25px);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .executive-drawer {
+    width: min(640px, 100%);
+  }
+
+  .executive-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .health-drivers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .raid-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .financial-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .project-info {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* =========================================================
+   SIDEBAR MOBILE
+   ========================================================= */
 
 @media (max-width: 900px) {
   .sidebar {
@@ -644,6 +1308,10 @@ tbody tr:hover {
   }
 }
 
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 600px) {
   .kpis {
     grid-template-columns: 1fr;
@@ -663,6 +1331,10 @@ tbody tr:hover {
     padding: 0 15px;
   }
 
+  .topbar h1 {
+    font-size: 20px;
+  }
+
   .content {
     padding: 20px 12px;
   }
@@ -674,4 +1346,65 @@ tbody tr:hover {
   .drawer {
     padding: 20px;
   }
+
+  .executive-drawer {
+    padding: 20px 18px 28px;
+  }
+
+  .executive-health {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .health-number {
+    font-size: 42px;
+  }
+
+  .executive-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .health-drivers {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .raid-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .financial-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .schedule-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .project-info {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .section-title {
+    align-items: flex-start;
+  }
+
+  .table-wrap {
+    margin: 0;
+  }
+
+  th,
+  td {
+    white-space: nowrap;
+  }
 }
+
+@media (max-width: 380px) {
+  .executive-kpis,
+  .health-drivers,
+  .raid-grid,
+  .financial-grid,
+  .project-info {
+    grid-template-columns: 1fr;
+  }
+}
+```
