@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
-  Activity,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   CircleDollarSign,
   Clock3,
@@ -12,11 +10,13 @@ import {
   LogOut,
   Menu,
   RefreshCw,
-  Search,
   ShieldAlert,
   Target,
   Users,
   X,
+  Activity,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
@@ -35,9 +35,18 @@ type Project = {
   open_issues?: number;
   overdue_actions?: number;
   days_to_go_live?: number;
+  planned_start_date?: string;
+  planned_end_date?: string;
+  forecast_end_date?: string;
+  actual_start_date?: string;
 };
 
-type FilterStatus = "all" | "healthy" | "attention" | "critical";
+type Section =
+  | "portfolio"
+  | "schedule"
+  | "raid"
+  | "financial"
+  | "resources";
 
 const demoProjects: Project[] = [
   {
@@ -45,7 +54,7 @@ const demoProjects: Project[] = [
     code: "DEMO-001",
     name: "Projeto SAP — conexão pendente",
     status: "in_progress",
-    current_phase: "Preparação",
+    current_phase: "Realização",
     progress: 0,
     spi: 1,
     health_score: 80,
@@ -54,10 +63,13 @@ const demoProjects: Project[] = [
     open_issues: 0,
     overdue_actions: 0,
     days_to_go_live: 120,
+    planned_start_date: "2026-06-01",
+    planned_end_date: "2026-12-20",
+    forecast_end_date: "2026-12-20",
   },
 ];
 
-function statusLabel(status?: string): FilterStatus {
+function statusLabel(status?: string) {
   const value = (status || "").toLowerCase().trim();
 
   if (
@@ -79,15 +91,6 @@ function statusLabel(status?: string): FilterStatus {
     return "attention";
   }
 
-  if (
-    value.includes("healthy") ||
-    value.includes("green") ||
-    value.includes("saudável") ||
-    value.includes("saudavel")
-  ) {
-    return "healthy";
-  }
-
   return "healthy";
 }
 
@@ -100,13 +103,38 @@ function statusText(status?: string) {
   return "Healthy";
 }
 
-function average(values: number[]) {
-  if (!values.length) return 0;
+function formatDate(date?: string) {
+  if (!date) return "—";
 
-  return (
-    values.reduce((sum, value) => sum + value, 0) /
-    values.length
-  );
+  const parsed = new Date(`${date}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) return "—";
+
+  return parsed.toLocaleDateString("pt-BR");
+}
+
+function scheduleStatus(project: Project) {
+  if (
+    project.forecast_end_date &&
+    project.planned_end_date &&
+    project.forecast_end_date > project.planned_end_date
+  ) {
+    return "critical";
+  }
+
+  if (Number(project.spi ?? 1) < 0.9) return "critical";
+  if (Number(project.spi ?? 1) < 1) return "attention";
+
+  return "healthy";
+}
+
+function scheduleStatusText(project: Project) {
+  const status = scheduleStatus(project);
+
+  if (status === "critical") return "Atrasado";
+  if (status === "attention") return "Atenção";
+
+  return "No prazo";
 }
 
 function App() {
@@ -115,13 +143,11 @@ function App() {
   const [selected, setSelected] = useState<Project | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [activeSection, setActiveSection] =
+    useState<Section>("portfolio");
 
   async function loadProjects() {
     setLoading(true);
-    setErrorMessage("");
 
     if (!supabaseConfigured) {
       setConnected(false);
@@ -137,13 +163,8 @@ function App() {
 
     if (error) {
       console.error("Erro ao carregar projetos:", error);
-
       setConnected(false);
       setProjects([]);
-
-      setErrorMessage(
-        `Não foi possível carregar o portfolio. ${error.message}`
-      );
     } else {
       setConnected(true);
       setProjects((data || []) as Project[]);
@@ -171,76 +192,47 @@ function App() {
       statusLabel(project.health_status) === "critical"
   ).length;
 
-  const healthAverage = average(
-    projects.map((project) =>
-      Number(project.health_score ?? 0)
-    )
-  );
+  const scheduleHealthy = projects.filter(
+    (project) => scheduleStatus(project) === "healthy"
+  ).length;
 
-  const spiAverage = average(
-    projects
-      .filter((project) => project.spi != null)
+  const scheduleAttention = projects.filter(
+    (project) => scheduleStatus(project) === "attention"
+  ).length;
+
+  const scheduleCritical = projects.filter(
+    (project) => scheduleStatus(project) === "critical"
+  ).length;
+
+  const averageSpi = useMemo(() => {
+    const values = projects
       .map((project) => Number(project.spi))
-  );
+      .filter((value) => Number.isFinite(value));
 
-  const progressAverage = average(
-    projects.map((project) =>
-      Number(project.progress ?? 0)
-    )
-  );
+    if (!values.length) return 0;
 
-  const raidTotal = projects.reduce(
-    (total, project) =>
-      total +
-      Number(project.critical_risks ?? 0) +
-      Number(project.open_issues ?? 0) +
-      Number(project.overdue_actions ?? 0),
-    0
-  );
+    return (
+      values.reduce((total, value) => total + value, 0) /
+      values.length
+    );
+  }, [projects]);
 
-  const portfolioStatus: FilterStatus =
-    critical > 0
-      ? "critical"
-      : attention > 0
-        ? "attention"
-        : "healthy";
+  const nextGoLive = useMemo(() => {
+    const values = projects
+      .map((project) => Number(project.days_to_go_live))
+      .filter((value) => Number.isFinite(value) && value >= 0);
 
-  const filteredProjects = useMemo(() => {
-    const term = search.toLowerCase().trim();
+    return values.length ? Math.min(...values) : null;
+  }, [projects]);
 
-    return [...projects]
-      .filter((project) => {
-        if (filter === "all") return true;
-
-        return (
-          statusLabel(project.health_status) === filter
-        );
-      })
-      .filter((project) => {
-        if (!term) return true;
-
-        return (
-          project.code.toLowerCase().includes(term) ||
-          project.name.toLowerCase().includes(term) ||
-          (project.current_phase || "")
-            .toLowerCase()
-            .includes(term)
-        );
-      })
-      .sort(
-        (a, b) =>
-          Number(a.health_score ?? 0) -
-          Number(b.health_score ?? 0)
-      );
-  }, [projects, filter, search]);
+  function navigate(section: Section) {
+    setActiveSection(section);
+    setMenuOpen(false);
+  }
 
   return (
     <div className="app">
-      <aside
-        className={`sidebar ${
-          menuOpen ? "open" : ""
-        }`}
-      >
+      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
         <div className="brand">
           <div className="brand-mark">SAP</div>
 
@@ -260,48 +252,49 @@ function App() {
         </div>
 
         <nav>
-          <button
-            className="nav-item active"
-            type="button"
-          >
-            <LayoutDashboard size={18} />
-            Portfolio
-          </button>
+          <NavItem
+            active={activeSection === "portfolio"}
+            icon={<LayoutDashboard size={18} />}
+            label="Portfolio"
+            onClick={() => navigate("portfolio")}
+          />
 
-          <button className="nav-item" type="button">
-            <CalendarDays size={18} />
-            Cronograma
-          </button>
+          <NavItem
+            active={activeSection === "schedule"}
+            icon={<CalendarDays size={18} />}
+            label="Cronograma"
+            onClick={() => navigate("schedule")}
+          />
 
-          <button className="nav-item" type="button">
-            <ShieldAlert size={18} />
-            RAID
-          </button>
+          <NavItem
+            active={activeSection === "raid"}
+            icon={<ShieldAlert size={18} />}
+            label="RAID"
+            onClick={() => navigate("raid")}
+          />
 
-          <button className="nav-item" type="button">
-            <CircleDollarSign size={18} />
-            Financeiro
-          </button>
+          <NavItem
+            active={activeSection === "financial"}
+            icon={<CircleDollarSign size={18} />}
+            label="Financeiro"
+            onClick={() => navigate("financial")}
+          />
 
-          <button className="nav-item" type="button">
-            <Users size={18} />
-            Recursos
-          </button>
+          <NavItem
+            active={activeSection === "resources"}
+            icon={<Users size={18} />}
+            label="Recursos"
+            onClick={() => navigate("resources")}
+          />
         </nav>
 
         <div className="sidebar-footer">
           <div className="connection">
-            <span
-              className={
-                connected ? "dot on" : "dot"
-              }
-            />
+            <span className={connected ? "dot on" : "dot"} />
 
             {connected
               ? "Supabase conectado"
-              : supabaseConfigured
-                ? "Erro de conexão"
-                : "Modo demonstração"}
+              : "Configure o Supabase"}
           </div>
 
           <button className="nav-item" type="button">
@@ -328,28 +321,27 @@ function App() {
                 EXECUTIVE PORTFOLIO
               </div>
 
-              <h1>Visão geral</h1>
+              <h1>
+                {activeSection === "portfolio"
+                  ? "Visão geral"
+                  : activeSection === "schedule"
+                    ? "Cronograma"
+                    : activeSection === "raid"
+                      ? "RAID"
+                      : activeSection === "financial"
+                        ? "Financeiro"
+                        : "Recursos"}
+              </h1>
             </div>
           </div>
 
           <button
-            className={`refresh ${
-              loading ? "loading" : ""
-            }`}
+            className="refresh"
             onClick={loadProjects}
-            disabled={loading}
             type="button"
           >
-            <RefreshCw
-              size={16}
-              className={
-                loading ? "spin" : ""
-              }
-            />
-
-            {loading
-              ? "Atualizando..."
-              : "Atualizar"}
+            <RefreshCw size={16} />
+            Atualizar
           </button>
         </header>
 
@@ -363,532 +355,825 @@ function App() {
               </strong>
 
               <span>
-                O dashboard está usando dados de demonstração.
-                Configure VITE_SUPABASE_URL e
-                VITE_SUPABASE_ANON_KEY na Vercel.
+                Configure as variáveis do projeto Supabase na
+                Vercel.
               </span>
             </div>
           </div>
         )}
 
-        {errorMessage && (
-          <div className="error-banner">
-            <AlertTriangle size={18} />
-
-            <div>
-              <strong>
-                Falha ao carregar o portfolio
-              </strong>
-
-              <span>{errorMessage}</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={loadProjects}
-            >
-              Tentar novamente
-            </button>
-          </div>
+        {activeSection === "portfolio" && (
+          <PortfolioView
+            projects={projects}
+            loading={loading}
+            healthy={healthy}
+            attention={attention}
+            critical={critical}
+            onSelect={setSelected}
+          />
         )}
 
-        <section className="content">
-          <div className="welcome">
-            <div>
-              <div className="eyebrow">
-                SAP PROGRAM GOVERNANCE
-              </div>
+        {activeSection === "schedule" && (
+          <ScheduleView
+            projects={projects}
+            loading={loading}
+            scheduleHealthy={scheduleHealthy}
+            scheduleAttention={scheduleAttention}
+            scheduleCritical={scheduleCritical}
+            averageSpi={averageSpi}
+            nextGoLive={nextGoLive}
+            onSelect={setSelected}
+          />
+        )}
 
-              <h2>Portfolio SAP</h2>
+        {activeSection === "raid" && (
+          <RaidView
+            projects={projects}
+            loading={loading}
+            onSelect={setSelected}
+          />
+        )}
 
-              <p>
-                Acompanhe a saúde, execução e principais
-                indicadores dos projetos em um único lugar.
-              </p>
-            </div>
+        {activeSection === "financial" && (
+          <ModulePlaceholder
+            icon={<CircleDollarSign size={28} />}
+            eyebrow="FINANCIAL GOVERNANCE"
+            title="Gestão financeira"
+            description="Budget, realizado, forecast, desvios e controle financeiro dos projetos SAP."
+          />
+        )}
 
-            <div className="date">
-              {new Date().toLocaleDateString(
-                "pt-BR",
-                {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                }
-              )}
-            </div>
-          </div>
-
-          <section
-            className={`portfolio-health ${portfolioStatus}`}
-          >
-            <div className="portfolio-health-main">
-              <div>
-                <span className="portfolio-kicker">
-                  PORTFOLIO HEALTH
-                </span>
-
-                <h3>
-                  {portfolioStatus === "critical"
-                    ? "Atenção executiva requerida"
-                    : portfolioStatus === "attention"
-                      ? "Portfolio requer acompanhamento"
-                      : "Portfolio sob controle"}
-                </h3>
-
-                <p>
-                  {projects.length} projeto
-                  {projects.length === 1
-                    ? ""
-                    : "s"} monitorado
-                  {projects.length === 1
-                    ? ""
-                    : "s"} no Control Tower.
-                </p>
-              </div>
-
-              <div className="portfolio-health-score">
-                <span>Health médio</span>
-
-                <strong>
-                  {Math.round(healthAverage)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="portfolio-health-bar">
-              <div>
-                <span
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      Math.max(
-                        0,
-                        healthAverage
-                      )
-                    )}%`,
-                  }}
-                />
-              </div>
-
-              <small>
-                {healthy} Healthy · {attention} Atenção ·{" "}
-                {critical} Crítico
-              </small>
-            </div>
-          </section>
-
-          <div className="kpis">
-            <Kpi
-              title="Projetos"
-              value={projects.length}
-              subtitle="No portfolio"
-            />
-
-            <Kpi
-              title="Health médio"
-              value={Math.round(
-                healthAverage
-              )}
-              subtitle="Saúde do portfolio"
-              tone={
-                portfolioStatus
-              }
-            />
-
-            <Kpi
-              title="SPI médio"
-              value={
-                projects.some(
-                  (project) =>
-                    project.spi != null
-                )
-                  ? spiAverage.toFixed(2)
-                  : "—"
-              }
-              subtitle="Performance de prazo"
-              tone={
-                spiAverage >= 1
-                  ? "healthy"
-                  : spiAverage > 0
-                    ? "attention"
-                    : ""
-              }
-            />
-
-            <Kpi
-              title="Progresso médio"
-              value={`${Math.round(
-                progressAverage
-              )}%`}
-              subtitle="Execução do portfolio"
-            />
-
-            <Kpi
-              title="Healthy"
-              value={healthy}
-              subtitle="Dentro do esperado"
-              tone="healthy"
-            />
-
-            <Kpi
-              title="Atenção"
-              value={attention}
-              subtitle="Requer acompanhamento"
-              tone="attention"
-            />
-
-            <Kpi
-              title="Crítico"
-              value={critical}
-              subtitle="Requer ação"
-              tone="critical"
-            />
-
-            <Kpi
-              title="RAID"
-              value={raidTotal}
-              subtitle="Itens registrados"
-              tone={
-                raidTotal > 0
-                  ? "attention"
-                  : "healthy"
-              }
-            />
-          </div>
-
-          <section className="panel">
-            <div className="panel-head">
-              <div>
-                <h3>Projetos</h3>
-
-                <p>
-                  Selecione um projeto para abrir a visão
-                  executiva detalhada.
-                </p>
-              </div>
-
-              <span className="count">
-                {filteredProjects.length} de{" "}
-                {projects.length}
-              </span>
-            </div>
-
-            <div className="project-toolbar">
-              <div className="search-box">
-                <Search size={16} />
-
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(event) =>
-                    setSearch(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Buscar projeto, código ou fase..."
-                />
-
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => setSearch("")}
-                    aria-label="Limpar busca"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              <div className="filter-group">
-                <FilterButton
-                  label="Todos"
-                  value="all"
-                  active={filter === "all"}
-                  onClick={() =>
-                    setFilter("all")
-                  }
-                />
-
-                <FilterButton
-                  label={`Healthy ${healthy}`}
-                  value="healthy"
-                  active={
-                    filter === "healthy"
-                  }
-                  onClick={() =>
-                    setFilter("healthy")
-                  }
-                />
-
-                <FilterButton
-                  label={`Atenção ${attention}`}
-                  value="attention"
-                  active={
-                    filter === "attention"
-                  }
-                  onClick={() =>
-                    setFilter("attention")
-                  }
-                />
-
-                <FilterButton
-                  label={`Crítico ${critical}`}
-                  value="critical"
-                  active={
-                    filter === "critical"
-                  }
-                  onClick={() =>
-                    setFilter("critical")
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="table-wrap">
-              {loading ? (
-                <div className="empty">
-                  <RefreshCw
-                    size={20}
-                    className="spin"
-                  />
-
-                  <span>
-                    Carregando portfolio...
-                  </span>
-                </div>
-              ) : filteredProjects.length === 0 ? (
-                <div className="empty">
-                  <Search size={22} />
-
-                  <strong>
-                    Nenhum projeto encontrado
-                  </strong>
-
-                  <span>
-                    Ajuste os filtros ou o termo da
-                    pesquisa.
-                  </span>
-                </div>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Projeto</th>
-                      <th>Health</th>
-                      <th>Fase</th>
-                      <th>Progresso</th>
-                      <th>SPI</th>
-                      <th>Go-Live</th>
-                      <th>RAID</th>
-                      <th />
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredProjects.map(
-                      (project) => {
-                        const status =
-                          statusLabel(
-                            project.health_status
-                          );
-
-                        const progress =
-                          Math.min(
-                            100,
-                            Math.max(
-                              0,
-                              Number(
-                                project.progress ??
-                                  0
-                              )
-                            )
-                          );
-
-                        const health =
-                          Math.round(
-                            Number(
-                              project.health_score ??
-                                0
-                            )
-                          );
-
-                        const raid =
-                          Number(
-                            project.critical_risks ??
-                              0
-                          ) +
-                          Number(
-                            project.open_issues ??
-                              0
-                          ) +
-                          Number(
-                            project.overdue_actions ??
-                              0
-                          );
-
-                        return (
-                          <tr
-                            key={project.id}
-                            onClick={() =>
-                              setSelected(
-                                project
-                              )
-                            }
-                          >
-                            <td>
-                              <div className="project">
-                                <strong>
-                                  {project.code}
-                                </strong>
-
-                                <span>
-                                  {project.name}
-                                </span>
-                              </div>
-                            </td>
-
-                            <td>
-                              <span
-                                className={`health ${status}`}
-                              >
-                                <i />
-
-                                <strong>
-                                  {health}
-                                </strong>
-
-                                <small>
-                                  {statusText(
-                                    project.health_status
-                                  )}
-                                </small>
-                              </span>
-                            </td>
-
-                            <td>
-                              <span className="phase">
-                                {project.current_phase ||
-                                  "—"}
-                              </span>
-                            </td>
-
-                            <td>
-                              <div className="progress">
-                                <span>
-                                  {Math.round(
-                                    progress
-                                  )}
-                                  %
-                                </span>
-
-                                <div>
-                                  <b
-                                    style={{
-                                      width: `${progress}%`,
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                            </td>
-
-                            <td>
-                              <span
-                                className={`spi ${
-                                  project.spi != null &&
-                                  Number(
-                                    project.spi
-                                  ) < 1
-                                    ? "below"
-                                    : ""
-                                }`}
-                              >
-                                {project.spi ==
-                                null
-                                  ? "—"
-                                  : Number(
-                                      project.spi
-                                    ).toFixed(
-                                      2
-                                    )}
-                              </span>
-                            </td>
-
-                            <td>
-                              <span className="golive">
-                                {project.days_to_go_live ==
-                                null
-                                  ? "—"
-                                  : `${Math.round(
-                                      Number(
-                                        project.days_to_go_live
-                                      )
-                                    )}d`}
-                              </span>
-                            </td>
-
-                            <td>
-                              <span
-                                className={`raid ${
-                                  raid === 0
-                                    ? "empty-raid"
-                                    : ""
-                                }`}
-                              >
-                                {raid}
-                              </span>
-                            </td>
-
-                            <td>
-                              <ChevronRight
-                                size={18}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      }
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </section>
-        </section>
+        {activeSection === "resources" && (
+          <ModulePlaceholder
+            icon={<Users size={28} />}
+            eyebrow="RESOURCE GOVERNANCE"
+            title="Gestão de recursos"
+            description="Planejamento de capacidade, alocação, utilização e esforço dos recursos."
+          />
+        )}
       </main>
 
       {selected && (
         <ProjectDetail
           project={selected}
-          onClose={() =>
-            setSelected(null)
-          }
+          onClose={() => setSelected(null)}
         />
       )}
     </div>
   );
 }
 
-function FilterButton({
-  label,
-  value,
+function NavItem({
   active,
+  icon,
+  label,
   onClick,
 }: {
-  label: string;
-  value: string;
   active: boolean;
+  icon: ReactNode;
+  label: string;
   onClick: () => void;
 }) {
   return (
     <button
-      className={`filter-btn ${
-        active ? "active" : ""
-      } ${value}`}
-      type="button"
+      className={`nav-item ${active ? "active" : ""}`}
       onClick={onClick}
+      type="button"
     >
+      {icon}
       {label}
     </button>
+  );
+}
+
+function PortfolioView({
+  projects,
+  loading,
+  healthy,
+  attention,
+  critical,
+  onSelect,
+}: {
+  projects: Project[];
+  loading: boolean;
+  healthy: number;
+  attention: number;
+  critical: number;
+  onSelect: (project: Project) => void;
+}) {
+  return (
+    <section className="content">
+      <div className="welcome">
+        <div>
+          <h2>Portfolio SAP</h2>
+
+          <p>
+            Acompanhe a saúde dos projetos em um único lugar.
+          </p>
+        </div>
+
+        <div className="date">
+          {new Date().toLocaleDateString("pt-BR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          })}
+        </div>
+      </div>
+
+      <div className="kpis">
+        <Kpi
+          title="Projetos"
+          value={projects.length}
+          subtitle="No portfolio"
+        />
+
+        <Kpi
+          title="Healthy"
+          value={healthy}
+          subtitle="Dentro do esperado"
+          tone="healthy"
+        />
+
+        <Kpi
+          title="Atenção"
+          value={attention}
+          subtitle="Requer acompanhamento"
+          tone="attention"
+        />
+
+        <Kpi
+          title="Crítico"
+          value={critical}
+          subtitle="Requer ação"
+          tone="critical"
+        />
+      </div>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>Projetos</h3>
+
+            <p>
+              Selecione um projeto para abrir a visão executiva
+              detalhada.
+            </p>
+          </div>
+
+          <span className="count">
+            {projects.length} projetos
+          </span>
+        </div>
+
+        <div className="table-wrap">
+          {loading ? (
+            <div className="empty">
+              Carregando portfolio...
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="empty">
+              Nenhum projeto encontrado no dashboard.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Health</th>
+                  <th>Progresso</th>
+                  <th>SPI</th>
+                  <th>Go-Live</th>
+                  <th>RAID</th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {projects.map((project) => {
+                  const status = statusLabel(
+                    project.health_status
+                  );
+
+                  const progress = Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      Number(project.progress ?? 0)
+                    )
+                  );
+
+                  const raid =
+                    Number(project.critical_risks ?? 0) +
+                    Number(project.open_issues ?? 0) +
+                    Number(project.overdue_actions ?? 0);
+
+                  return (
+                    <tr
+                      key={project.id}
+                      onClick={() => onSelect(project)}
+                    >
+                      <td>
+                        <div className="project">
+                          <strong>{project.code}</strong>
+                          <span>{project.name}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span
+                          className={`health ${status}`}
+                        >
+                          <i />
+                          {Math.round(
+                            Number(
+                              project.health_score ?? 0
+                            )
+                          )}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="progress">
+                          <span>
+                            {Math.round(progress)}%
+                          </span>
+
+                          <div>
+                            <b
+                              style={{
+                                width: `${progress}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        {project.spi == null
+                          ? "—"
+                          : Number(project.spi).toFixed(2)}
+                      </td>
+
+                      <td>
+                        {project.days_to_go_live == null
+                          ? "—"
+                          : `${Math.round(
+                              Number(
+                                project.days_to_go_live
+                              )
+                            )}d`}
+                      </td>
+
+                      <td>
+                        <span className="raid">
+                          {raid}
+                        </span>
+                      </td>
+
+                      <td>
+                        <ChevronRight size={18} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function ScheduleView({
+  projects,
+  loading,
+  scheduleHealthy,
+  scheduleAttention,
+  scheduleCritical,
+  averageSpi,
+  nextGoLive,
+  onSelect,
+}: {
+  projects: Project[];
+  loading: boolean;
+  scheduleHealthy: number;
+  scheduleAttention: number;
+  scheduleCritical: number;
+  averageSpi: number;
+  nextGoLive: number | null;
+  onSelect: (project: Project) => void;
+}) {
+  const scheduleScore =
+    projects.length === 0
+      ? 0
+      : Math.round(
+          (scheduleHealthy / projects.length) * 100
+        );
+
+  return (
+    <section className="content">
+      <div className="welcome">
+        <div>
+          <h2>Governança de Cronograma</h2>
+
+          <p>
+            Controle de prazo, SPI, Go-Live e desvios do
+            portfólio SAP.
+          </p>
+        </div>
+
+        <div className="date">
+          {new Date().toLocaleDateString("pt-BR")}
+        </div>
+      </div>
+
+      <div className="schedule-hero">
+        <div>
+          <span className="section-kicker">
+            SCHEDULE HEALTH
+          </span>
+
+          <strong>{scheduleScore}%</strong>
+
+          <p>
+            dos projetos estão atualmente dentro do prazo
+            esperado.
+          </p>
+        </div>
+
+        <div className="schedule-hero-status">
+          <CalendarDays size={22} />
+          <span>
+            {scheduleCritical > 0
+              ? "Atenção executiva necessária"
+              : scheduleAttention > 0
+                ? "Monitoramento necessário"
+                : "Cronograma sob controle"}
+          </span>
+        </div>
+      </div>
+
+      <div className="kpis schedule-kpis">
+        <Kpi
+          title="No prazo"
+          value={scheduleHealthy}
+          subtitle="Projetos controlados"
+          tone="healthy"
+        />
+
+        <Kpi
+          title="Atenção"
+          value={scheduleAttention}
+          subtitle="SPI abaixo de 1.00"
+          tone="attention"
+        />
+
+        <Kpi
+          title="Atrasados"
+          value={scheduleCritical}
+          subtitle="Ação requerida"
+          tone="critical"
+        />
+
+        <Kpi
+          title="SPI médio"
+          value={averageSpi ? averageSpi.toFixed(2) : "—"}
+          subtitle="Índice de desempenho"
+        />
+      </div>
+
+      <div className="schedule-summary">
+        <div>
+          <span>Próximo Go-Live</span>
+          <strong>
+            {nextGoLive == null
+              ? "—"
+              : `${nextGoLive} dias`}
+          </strong>
+        </div>
+
+        <div>
+          <span>Projetos monitorados</span>
+          <strong>{projects.length}</strong>
+        </div>
+
+        <div>
+          <span>Criticidade</span>
+          <strong>
+            {scheduleCritical > 0
+              ? "Alta"
+              : scheduleAttention > 0
+                ? "Média"
+                : "Baixa"}
+          </strong>
+        </div>
+      </div>
+
+      <section className="panel schedule-panel">
+        <div className="panel-head">
+          <div>
+            <h3>Controle de cronograma</h3>
+
+            <p>
+              Visão consolidada do planejamento e previsão
+              dos projetos.
+            </p>
+          </div>
+
+          <span className="count">
+            {projects.length} projetos
+          </span>
+        </div>
+
+        <div className="table-wrap">
+          {loading ? (
+            <div className="empty">
+              Carregando cronograma...
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="empty">
+              Nenhum projeto disponível.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Fase</th>
+                  <th>Início</th>
+                  <th>Fim planejado</th>
+                  <th>Forecast</th>
+                  <th>Progresso</th>
+                  <th>SPI</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {projects.map((project) => {
+                  const progress = Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      Number(project.progress ?? 0)
+                    )
+                  );
+
+                  const status = scheduleStatus(project);
+
+                  return (
+                    <tr
+                      key={project.id}
+                      onClick={() => onSelect(project)}
+                    >
+                      <td>
+                        <div className="project">
+                          <strong>{project.code}</strong>
+                          <span>{project.name}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        {project.current_phase || "—"}
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          project.planned_start_date
+                        )}
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          project.planned_end_date
+                        )}
+                      </td>
+
+                      <td>
+                        {formatDate(
+                          project.forecast_end_date
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="progress">
+                          <span>
+                            {Math.round(progress)}%
+                          </span>
+
+                          <div>
+                            <b
+                              style={{
+                                width: `${progress}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        {project.spi == null
+                          ? "—"
+                          : Number(project.spi).toFixed(2)}
+                      </td>
+
+                      <td>
+                        <span
+                          className={`health ${status}`}
+                        >
+                          <i />
+                          {scheduleStatusText(project)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+
+      <section className="executive-section">
+        <div className="section-title">
+          <div>
+            <span className="section-kicker">
+              SAP DELIVERY
+            </span>
+
+            <h3>Fases de implementação</h3>
+          </div>
+        </div>
+
+        <div className="phase-flow">
+          <Phase
+            number="01"
+            title="Prepare"
+            description="Preparação e planejamento"
+          />
+
+          <Phase
+            number="02"
+            title="Explore"
+            description="Fit-to-Standard"
+          />
+
+          <Phase
+            number="03"
+            title="Realize"
+            description="Construção e testes"
+          />
+
+          <Phase
+            number="04"
+            title="Deploy"
+            description="Cutover e Go-Live"
+          />
+
+          <Phase
+            number="05"
+            title="Run"
+            description="Operação assistida"
+          />
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function RaidView({
+  projects,
+  loading,
+  onSelect,
+}: {
+  projects: Project[];
+  loading: boolean;
+  onSelect: (project: Project) => void;
+}) {
+  const risks = projects.reduce(
+    (sum, project) =>
+      sum + Number(project.critical_risks ?? 0),
+    0
+  );
+
+  const issues = projects.reduce(
+    (sum, project) =>
+      sum + Number(project.open_issues ?? 0),
+    0
+  );
+
+  const actions = projects.reduce(
+    (sum, project) =>
+      sum + Number(project.overdue_actions ?? 0),
+    0
+  );
+
+  const total = risks + issues + actions;
+
+  return (
+    <section className="content">
+      <div className="welcome">
+        <div>
+          <h2>RAID Management</h2>
+
+          <p>
+            Riscos, issues e ações que exigem governança
+            executiva.
+          </p>
+        </div>
+      </div>
+
+      <div className="raid-grid raid-grid-large">
+        <RaidCard
+          label="Riscos críticos"
+          value={risks}
+          icon={<ShieldAlert size={20} />}
+          tone={risks > 0 ? "critical" : ""}
+        />
+
+        <RaidCard
+          label="Issues abertas"
+          value={issues}
+          icon={<AlertTriangle size={20} />}
+          tone={issues > 0 ? "attention" : ""}
+        />
+
+        <RaidCard
+          label="Ações atrasadas"
+          value={actions}
+          icon={<Clock3 size={20} />}
+          tone={actions > 0 ? "attention" : ""}
+        />
+
+        <RaidCard
+          label="Total RAID"
+          value={total}
+          icon={<Target size={20} />}
+          tone={total > 0 ? "attention" : ""}
+        />
+      </div>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>RAID por projeto</h3>
+
+            <p>
+              Selecione um projeto para visualizar os detalhes.
+            </p>
+          </div>
+
+          <span className="count">
+            {total} itens
+          </span>
+        </div>
+
+        <div className="table-wrap">
+          {loading ? (
+            <div className="empty">
+              Carregando RAID...
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="empty">
+              Nenhum projeto encontrado.
+            </div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Projeto</th>
+                  <th>Riscos</th>
+                  <th>Issues</th>
+                  <th>Ações atrasadas</th>
+                  <th>Total</th>
+                  <th />
+                </tr>
+              </thead>
+
+              <tbody>
+                {projects.map((project) => {
+                  const projectRisks = Number(
+                    project.critical_risks ?? 0
+                  );
+
+                  const projectIssues = Number(
+                    project.open_issues ?? 0
+                  );
+
+                  const projectActions = Number(
+                    project.overdue_actions ?? 0
+                  );
+
+                  const projectTotal =
+                    projectRisks +
+                    projectIssues +
+                    projectActions;
+
+                  return (
+                    <tr
+                      key={project.id}
+                      onClick={() => onSelect(project)}
+                    >
+                      <td>
+                        <div className="project">
+                          <strong>{project.code}</strong>
+                          <span>{project.name}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="raid critical">
+                          {projectRisks}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="raid attention">
+                          {projectIssues}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="raid attention">
+                          {projectActions}
+                        </span>
+                      </td>
+
+                      <td>
+                        <strong>{projectTotal}</strong>
+                      </td>
+
+                      <td>
+                        <ChevronRight size={18} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function Phase({
+  number,
+  title,
+  description,
+}: {
+  number: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="phase">
+      <div className="phase-number">{number}</div>
+
+      <strong>{title}</strong>
+
+      <span>{description}</span>
+    </div>
+  );
+}
+
+function ModulePlaceholder({
+  icon,
+  eyebrow,
+  title,
+  description,
+}: {
+  icon: ReactNode;
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <section className="content">
+      <div className="module-placeholder">
+        <div className="module-placeholder-icon">
+          {icon}
+        </div>
+
+        <div>
+          <span className="section-kicker">
+            {eyebrow}
+          </span>
+
+          <h2>{title}</h2>
+
+          <p>{description}</p>
+
+          <div className="module-status">
+            <Activity size={15} />
+            Módulo preparado para integração com Supabase
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -899,7 +1184,7 @@ function Kpi({
   tone,
 }: {
   title: string;
-  value: string | number;
+  value: number | string;
   subtitle: string;
   tone?: string;
 }) {
@@ -907,9 +1192,7 @@ function Kpi({
     <div className="kpi">
       <span>{title}</span>
 
-      <strong className={tone || ""}>
-        {value}
-      </strong>
+      <strong className={tone || ""}>{value}</strong>
 
       <small>{subtitle}</small>
     </div>
@@ -923,9 +1206,7 @@ function ProjectDetail({
   project: Project;
   onClose: () => void;
 }) {
-  const status = statusLabel(
-    project.health_status
-  );
+  const status = statusLabel(project.health_status);
 
   const health = Math.round(
     Number(project.health_score ?? 0)
@@ -933,10 +1214,7 @@ function ProjectDetail({
 
   const progress = Math.min(
     100,
-    Math.max(
-      0,
-      Number(project.progress ?? 0)
-    )
+    Math.max(0, Number(project.progress ?? 0))
   );
 
   const criticalRisks = Number(
@@ -960,6 +1238,8 @@ function ProjectDetail({
     project.health_status
   );
 
+  const projectScheduleStatus = scheduleStatus(project);
+
   const healthDescription =
     status === "critical"
       ? "O projeto apresenta indicadores que exigem atuação executiva."
@@ -974,9 +1254,7 @@ function ProjectDetail({
     >
       <aside
         className="drawer executive-drawer"
-        onClick={(event) =>
-          event.stopPropagation()
-        }
+        onClick={(event) => event.stopPropagation()}
       >
         <div className="drawer-head">
           <div>
@@ -1018,7 +1296,6 @@ function ProjectDetail({
 
           <div className="health-status">
             <span className="health-status-dot" />
-
             <strong>{currentStatus}</strong>
           </div>
         </section>
@@ -1026,9 +1303,7 @@ function ProjectDetail({
         <section className="executive-kpis">
           <ExecutiveMetric
             label="Progresso"
-            value={`${Math.round(
-              progress
-            )}%`}
+            value={`${Math.round(progress)}%`}
             highlight
           />
 
@@ -1037,32 +1312,24 @@ function ProjectDetail({
             value={
               project.spi == null
                 ? "—"
-                : Number(
-                    project.spi
-                  ).toFixed(2)
+                : Number(project.spi).toFixed(2)
             }
           />
 
           <ExecutiveMetric
             label="Go-Live"
             value={
-              project.days_to_go_live ==
-              null
+              project.days_to_go_live == null
                 ? "—"
                 : `${Math.round(
-                    Number(
-                      project.days_to_go_live
-                    )
+                    Number(project.days_to_go_live)
                   )}d`
             }
           />
 
           <ExecutiveMetric
             label="Fase atual"
-            value={
-              project.current_phase ||
-              "—"
-            }
+            value={project.current_phase || "—"}
           />
         </section>
 
@@ -1082,11 +1349,9 @@ function ProjectDetail({
           >
             <div className="reading-icon">
               {status === "healthy" ? (
-                <CheckCircle2
-                  size={16}
-                />
+                <CheckCircle2 size={16} />
               ) : (
-                "!"
+                <AlertCircle size={16} />
               )}
             </div>
 
@@ -1099,9 +1364,7 @@ function ProjectDetail({
                     : "Projeto sob controle"}
               </strong>
 
-              <p>
-                {healthDescription}
-              </p>
+              <p>{healthDescription}</p>
             </div>
           </div>
         </section>
@@ -1113,9 +1376,7 @@ function ProjectDetail({
                 HEALTH DRIVERS
               </span>
 
-              <h3>
-                Por que este Health?
-              </h3>
+              <h3>Por que este Health?</h3>
             </div>
           </div>
 
@@ -1142,9 +1403,7 @@ function ProjectDetail({
 
             <Driver
               label="Ações atrasadas"
-              value={
-                overdueActions
-              }
+              value={overdueActions}
               tone={
                 overdueActions > 0
                   ? "attention"
@@ -1171,9 +1430,7 @@ function ProjectDetail({
                 DELIVERY
               </span>
 
-              <h3>
-                Progresso do projeto
-              </h3>
+              <h3>Progresso do projeto</h3>
             </div>
 
             <strong className="section-value">
@@ -1193,10 +1450,7 @@ function ProjectDetail({
 
             <div className="progress-caption">
               <span>Realizado</span>
-
-              <span>
-                {Math.round(progress)}%
-              </span>
+              <span>{Math.round(progress)}%</span>
             </div>
           </div>
         </section>
@@ -1210,54 +1464,77 @@ function ProjectDetail({
 
               <h3>Cronograma</h3>
             </div>
+
+            <span
+              className={`schedule-badge ${projectScheduleStatus}`}
+            >
+              <span />
+              {scheduleStatusText(project)}
+            </span>
           </div>
 
-          <div className="placeholder-card">
-            <CalendarDays size={20} />
+          <div className="schedule-detail-grid">
+            <ExecutiveMetric
+              label="Início planejado"
+              value={formatDate(
+                project.planned_start_date
+              )}
+            />
 
-            <div>
-              <strong>
-                Indicadores de cronograma
-              </strong>
+            <ExecutiveMetric
+              label="Fim planejado"
+              value={formatDate(
+                project.planned_end_date
+              )}
+            />
 
-              <span>
-                Dados detalhados serão
-                conectados ao módulo de
-                cronograma.
-              </span>
-            </div>
+            <ExecutiveMetric
+              label="Forecast"
+              value={formatDate(
+                project.forecast_end_date
+              )}
+            />
 
-            <b>—</b>
-          </div>
-
-          <div className="schedule-summary">
-            <div>
-              <span>Planejado</span>
-              <strong>—</strong>
-            </div>
-
-            <div>
-              <span>Realizado</span>
-
-              <strong>
-                {Math.round(
-                  progress
-                )}
-                %
-              </strong>
-            </div>
-
-            <div>
-              <span>SPI</span>
-
-              <strong>
-                {project.spi == null
+            <ExecutiveMetric
+              label="SPI"
+              value={
+                project.spi == null
                   ? "—"
-                  : Number(
-                      project.spi
-                    ).toFixed(2)}
-              </strong>
-            </div>
+                  : Number(project.spi).toFixed(2)
+              }
+            />
+          </div>
+
+          <div className="schedule-timeline">
+            <div className="timeline-line" />
+
+            <TimelineItem
+              title="Início"
+              value={formatDate(
+                project.planned_start_date
+              )}
+              completed
+            />
+
+            <TimelineItem
+              title="Fase atual"
+              value={project.current_phase || "—"}
+              completed={progress > 0}
+            />
+
+            <TimelineItem
+              title="Go-Live"
+              value={
+                project.days_to_go_live == null
+                  ? "—"
+                  : `${Math.round(
+                      Number(
+                        project.days_to_go_live
+                      )
+                    )} dias`
+              }
+              completed={false}
+            />
           </div>
         </section>
 
@@ -1280,38 +1557,28 @@ function ProjectDetail({
             <RaidCard
               label="Riscos"
               value={criticalRisks}
-              icon={
-                <ShieldAlert size={18} />
-              }
+              icon={<ShieldAlert size={18} />}
               tone="critical"
             />
 
             <RaidCard
               label="Issues"
               value={openIssues}
-              icon={
-                <AlertTriangle size={18} />
-              }
+              icon={<AlertTriangle size={18} />}
               tone="attention"
             />
 
             <RaidCard
               label="Ações"
-              value={
-                overdueActions
-              }
-              icon={
-                <Clock3 size={18} />
-              }
+              value={overdueActions}
+              icon={<Clock3 size={18} />}
               tone="attention"
             />
 
             <RaidCard
               label="Decisões"
               value="—"
-              icon={
-                <Target size={18} />
-              }
+              icon={<Target size={18} />}
             />
           </div>
         </section>
@@ -1328,35 +1595,24 @@ function ProjectDetail({
           </div>
 
           <div className="financial-grid">
-            <ExecutiveMetric
-              label="Budget"
-              value="—"
-            />
-
+            <ExecutiveMetric label="Budget" value="—" />
             <ExecutiveMetric
               label="Realizado"
               value="—"
             />
-
             <ExecutiveMetric
               label="Forecast"
               value="—"
             />
-
-            <ExecutiveMetric
-              label="Desvio"
-              value="—"
-            />
+            <ExecutiveMetric label="Desvio" value="—" />
           </div>
 
           <div className="placeholder-note">
-            <CircleDollarSign
-              size={18}
-            />
+            <CircleDollarSign size={18} />
 
             <span>
-              Indicadores financeiros serão
-              conectados ao módulo Financeiro.
+              Indicadores financeiros serão conectados ao
+              módulo Financeiro.
             </span>
           </div>
         </section>
@@ -1398,8 +1654,8 @@ function ProjectDetail({
             <Users size={18} />
 
             <span>
-              Dados de recursos serão conectados
-              ao módulo de Recursos.
+              Dados de recursos serão conectados ao módulo
+              de Recursos.
             </span>
           </div>
         </section>
@@ -1423,9 +1679,8 @@ function ProjectDetail({
             </strong>
 
             <span>
-              Os próximos marcos serão apresentados
-              quando o módulo de cronograma estiver
-              conectado.
+              Os próximos marcos serão apresentados quando
+              o módulo de cronograma estiver conectado.
             </span>
           </div>
         </section>
@@ -1444,8 +1699,7 @@ function ProjectDetail({
           <div>
             <span>Fase</span>
             <strong>
-              {project.current_phase ||
-                "—"}
+              {project.current_phase || "—"}
             </strong>
           </div>
 
@@ -1453,8 +1707,7 @@ function ProjectDetail({
             <span>Go-Live</span>
 
             <strong>
-              {project.days_to_go_live ==
-              null
+              {project.days_to_go_live == null
                 ? "—"
                 : `${Math.round(
                     Number(
@@ -1484,6 +1737,31 @@ function ProjectDetail({
   );
 }
 
+function TimelineItem({
+  title,
+  value,
+  completed,
+}: {
+  title: string;
+  value: string;
+  completed: boolean;
+}) {
+  return (
+    <div className="timeline-item">
+      <div
+        className={`timeline-dot ${
+          completed ? "completed" : ""
+        }`}
+      />
+
+      <div>
+        <strong>{title}</strong>
+        <span>{value}</span>
+      </div>
+    </div>
+  );
+}
+
 function ExecutiveMetric({
   label,
   value,
@@ -1500,7 +1778,6 @@ function ExecutiveMetric({
       }`}
     >
       <span>{label}</span>
-
       <strong>{value}</strong>
     </div>
   );
@@ -1517,10 +1794,7 @@ function Driver({
 }) {
   return (
     <div className={`driver ${tone}`}>
-      <div className="driver-value">
-        {value}
-      </div>
-
+      <div className="driver-value">{value}</div>
       <span>{label}</span>
     </div>
   );
@@ -1539,13 +1813,10 @@ function RaidCard({
 }) {
   return (
     <div className={`raid-card ${tone}`}>
-      <div className="raid-card-icon">
-        {icon}
-      </div>
+      <div className="raid-card-icon">{icon}</div>
 
       <div>
         <strong>{value}</strong>
-
         <span>{label}</span>
       </div>
     </div>
