@@ -3143,3 +3143,934 @@ tbody tr:last-child td {
     padding: 14px;
   }
 }
+
+/* =========================================================
+   FINAL UI PATCH — SAP GOVERNANCE DASHBOARD
+   Consolidação visual e correção de conflitos
+   ========================================================= */
+
+:root {
+  --sap-navy: #101828;
+  --sap-text: #344054;
+  --sap-muted: #667085;
+  --sap-subtle: #98a2b3;
+  --sap-border: #e4e7ec;
+  --sap-border-soft: #eaecf0;
+  --sap-bg: #f5f7fa;
+  --sap-blue: #175cd3;
+  --sap-blue-strong: #315fce;
+  --sap-green: #067647;
+  --sap-orange: #b54708;
+  --sap-red: #b42318;
+  --sap-purple: #6941c6;
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--sap-bg);
+  color: var(--sap-text);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(49,95,206,.35);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   CONTENT
+   ========================================================= */
+
+.content {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 28px 34px 56px;
+}
+
+/* =========================================================
+   HERO PADRONIZADO
+   ========================================================= */
+
+.module-hero,
+.resources-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--sap-border);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(16,24,40,.035);
+}
+
+.module-hero::before,
+.resources-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--sap-blue-strong);
+}
+
+.resources-hero::before {
+  background: var(--sap-green);
+}
+
+.module-icon,
+.resources-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  border: 1px solid #dbe4f0;
+  background: #f5f8fc;
+  color: var(--sap-text);
+}
+
+.module-hero h2,
+.resources-hero h2 {
+  margin: 4px 0 5px;
+  color: var(--sap-navy);
+  font-size: 24px;
+  font-weight: 760;
+  line-height: 1.15;
+  letter-spacing: -.4px;
+}
+
+.module-hero p,
+.resources-hero p {
+  margin: 0;
+  max-width: 760px;
+  color: var(--sap-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.eyebrow,
+.section-kicker {
+  color: #55708f;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1.45px;
+  text-transform: uppercase;
+}
+
+/* =========================================================
+   BOTÕES
+   ========================================================= */
+
+.primary-btn,
+.secondary-btn {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background .16s ease,
+    border-color .16s ease,
+    transform .16s ease,
+    box-shadow .16s ease;
+}
+
+.primary-btn {
+  border: 1px solid var(--sap-blue);
+  background: var(--sap-blue);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(16,24,40,.08);
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: #0f67df;
+  border-color: #0f67df;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(23,92,211,.16);
+}
+
+.secondary-btn {
+  border: 1px solid #d5dce7;
+  background: #fff;
+  color: var(--sap-text);
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #c5cedb;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* =========================================================
+   KPIs — PADRÃO EXECUTIVO
+   ========================================================= */
+
+.module-kpis,
+.resource-kpis,
+.governance-kpis {
+  margin-bottom: 16px;
+}
+
+.module-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.module-kpis .kpi {
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid var(--sap-border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(16,24,40,.025);
+}
+
+.module-kpis .kpi-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.module-kpis .kpi > div:last-child {
+  min-width: 0;
+}
+
+.module-kpis .kpi > span {
+  display: block;
+  margin: 0;
+  color: var(--sap-muted);
+  font-size: 9px;
+}
+
+.module-kpis .kpi strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--sap-navy);
+  font-size: 23px;
+  line-height: 1;
+}
+
+.module-kpis .kpi.healthy .kpi-icon {
+  background: #ecfdf3;
+  color: var(--sap-green);
+}
+
+.module-kpis .kpi.attention .kpi-icon {
+  background: #fff7e6;
+  color: var(--sap-orange);
+}
+
+.module-kpis .kpi.critical .kpi-icon {
+  background: #fff1f3;
+  color: var(--sap-red);
+}
+
+/* =========================================================
+   RAID — CONSOLIDAÇÃO
+   ========================================================= */
+
+.raid-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.raid-kpi {
+  min-width: 0;
+  min-height: 94px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px;
+  border: 1px solid var(--sap-border);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(16,24,40,.025);
+}
+
+.raid-kpi-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.raid-kpi span {
+  display: block;
+  color: var(--sap-muted);
+  font-size: 9px;
+}
+
+.raid-kpi strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--sap-navy);
+  font-size: 22px;
+}
+
+.raid-kpi.critical {
+  border-color: #fecdca;
+  background: #fffafa;
+}
+
+.raid-kpi.critical .raid-kpi-icon {
+  background: #fee4e2;
+  color: var(--sap-red);
+}
+
+.raid-kpi.critical strong {
+  color: var(--sap-red);
+}
+
+.raid-kpi.attention {
+  border-color: #fedf89;
+  background: #fffdf7;
+}
+
+.raid-kpi.attention .raid-kpi-icon {
+  background: #fef0c7;
+  color: var(--sap-orange);
+}
+
+.raid-kpi.attention strong {
+  color: var(--sap-orange);
+}
+
+/* =========================================================
+   PAINÉIS
+   ========================================================= */
+
+.raid-panel,
+.resource-panel,
+.financial-panel,
+.operational-panel,
+.governance-project {
+  border: 1px solid var(--sap-border);
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(16,24,40,.025);
+}
+
+.raid-panel,
+.resource-panel,
+.financial-panel {
+  border-radius: 13px;
+}
+
+.raid-panel-head,
+.resource-table-head,
+.resource-panel-head,
+.financial-panel-head {
+  border-bottom-color: var(--sap-border-soft);
+}
+
+/* =========================================================
+   TABELAS
+   ========================================================= */
+
+.raid-table,
+.resource-table,
+.financial-table,
+.operational-panel table {
+  width: 100%;
+}
+
+.raid-table th,
+.resource-table th,
+.financial-table th,
+.operational-panel th {
+  background: #fbfcfe;
+  color: #667085;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .35px;
+  text-transform: uppercase;
+}
+
+.raid-table td,
+.resource-table td,
+.financial-table td,
+.operational-panel td {
+  color: var(--sap-text);
+  border-bottom-color: #edf0f4;
+}
+
+.raid-table tbody tr:hover,
+.resource-table tbody tr:hover,
+.financial-table tbody tr:hover,
+.operational-panel tbody tr:hover {
+  background: #fafcff;
+}
+
+/* =========================================================
+   STATUS / PRIORIDADE
+   ========================================================= */
+
+.status-pill,
+.priority-pill,
+.raid-type,
+.priority-badge,
+.raid-status,
+.financial-status {
+  border: 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.status-pill.ok,
+.status-pill.active,
+.financial-status.ok,
+.raid-status.resolved {
+  background: #ecfdf3;
+  color: var(--sap-green);
+}
+
+.status-pill.completed,
+.raid-status.accepted {
+  background: #eef4ff;
+  color: var(--sap-blue);
+}
+
+.status-pill.over,
+.status-pill.blocked,
+.financial-status.over,
+.raid-status.cancelled {
+  background: #fff1f3;
+  color: var(--sap-red);
+}
+
+.priority-pill.high,
+.priority-pill.critical,
+.priority-badge.high,
+.priority-badge.critical {
+  background: #fff1f3;
+  color: var(--sap-red);
+}
+
+.priority-pill.medium,
+.priority-badge.medium {
+  background: #fff7e6;
+  color: var(--sap-orange);
+}
+
+.priority-pill.low,
+.priority-badge.low {
+  background: #f2f4f7;
+  color: var(--sap-muted);
+}
+
+/* =========================================================
+   RAID TIPOS
+   ========================================================= */
+
+.raid-type.risk {
+  background: #fff1f0;
+  color: var(--sap-red);
+}
+
+.raid-type.issue {
+  background: #fff7e6;
+  color: var(--sap-orange);
+}
+
+.raid-type.action {
+  background: #eef4ff;
+  color: var(--sap-blue);
+}
+
+.raid-type.decision {
+  background: #f4f3ff;
+  color: var(--sap-purple);
+}
+
+.raid-type.dependency {
+  background: #ecfdf3;
+  color: var(--sap-green);
+}
+
+/* =========================================================
+   RECURSOS
+   ========================================================= */
+
+.resource-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.resource-kpi {
+  min-width: 0;
+  min-height: 104px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 15px;
+  overflow: hidden;
+  border: 1px solid var(--sap-border);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(16,24,40,.025);
+}
+
+.resource-kpi-body {
+  min-width: 0;
+}
+
+.resource-kpi-body > span {
+  display: block;
+  color: var(--sap-muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.resource-kpi-body strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--sap-navy);
+  font-size: 20px;
+}
+
+.resource-kpi-body small {
+  display: block;
+  margin-top: 4px;
+  color: var(--sap-subtle);
+  font-size: 8px;
+}
+
+.resource-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* =========================================================
+   FINANCEIRO
+   ========================================================= */
+
+.financial-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 12px;
+}
+
+.financial-kpi {
+  border-color: var(--sap-border);
+  border-radius: 13px;
+  box-shadow: 0 1px 4px rgba(16,24,40,.025);
+}
+
+.financial-kpi strong {
+  color: var(--sap-navy);
+}
+
+.financial-overview-card {
+  border-color: var(--sap-border);
+  border-radius: 13px;
+}
+
+.financial-bar-track {
+  background: #eaecf0;
+}
+
+.financial-bar-track b {
+  background: #667085;
+}
+
+.financial-bar-track.forecast b {
+  background: var(--sap-blue);
+}
+
+.financial-bar-track.large b {
+  background: var(--sap-green);
+}
+
+/* =========================================================
+   GOVERNANÇA
+   ========================================================= */
+
+.governance-project-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 14px;
+}
+
+.governance-project {
+  padding: 17px;
+  border-radius: 13px;
+}
+
+.governance-project-head strong {
+  color: var(--sap-navy);
+}
+
+.governance-progress {
+  border-color: #edf0f4;
+  background: #fbfcfe;
+}
+
+.governance-progress .progress-track b {
+  background: var(--sap-blue-strong);
+}
+
+.governance-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.governance-summary {
+  border-color: var(--sap-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* =========================================================
+   RACI
+   ========================================================= */
+
+.raci-hero,
+.governance-hero {
+  border-top: 3px solid var(--sap-blue-strong);
+}
+
+.raci-hero .module-icon,
+.governance-hero .module-icon {
+  background: #eef4ff;
+  border-color: #d7e3ff;
+  color: var(--sap-blue-strong);
+}
+
+/* =========================================================
+   SEARCH / TOOLBAR
+   ========================================================= */
+
+.toolbar,
+.raid-toolbar {
+  background: #fbfcfe;
+  border-bottom: 1px solid var(--sap-border-soft);
+}
+
+.search-box,
+.raid-search,
+.resource-search,
+.financial-search {
+  border-color: #d5dce7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.search-box:focus-within,
+.raid-search:focus-within,
+.resource-search:focus-within,
+.financial-search:focus-within {
+  border-color: #98b8ef;
+  box-shadow: 0 0 0 3px rgba(49,95,206,.08);
+}
+
+/* =========================================================
+   EMPTY STATES
+   ========================================================= */
+
+.empty-state,
+.raid-empty,
+.resource-empty,
+.financial-empty {
+  color: var(--sap-subtle);
+}
+
+.empty-state strong,
+.raid-empty strong,
+.resource-empty strong,
+.financial-empty strong {
+  color: var(--sap-text);
+}
+
+/* =========================================================
+   ALERTAS
+   ========================================================= */
+
+.module-alert,
+.financial-error,
+.error-banner,
+.inline-error {
+  border-color: #fecdca;
+  background: #fff8f7;
+  color: var(--sap-red);
+}
+
+/* =========================================================
+   MODAIS
+   ========================================================= */
+
+.modal-backdrop {
+  z-index: 200;
+  background: rgba(16,24,40,.48);
+  backdrop-filter: blur(2px);
+}
+
+.modal,
+.modal-card,
+.raid-modal {
+  border: 1px solid var(--sap-border);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(16,24,40,.20);
+}
+
+.modal-head {
+  border-bottom-color: var(--sap-border-soft);
+}
+
+.modal-head h2,
+.modal-head h3 {
+  color: var(--sap-navy);
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.raid-form input,
+.raid-form select,
+.raid-form textarea,
+.financial-form input,
+.financial-form select {
+  border-color: #d5dce7;
+  border-radius: 8px;
+}
+
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus,
+.raid-form input:focus,
+.raid-form select:focus,
+.raid-form textarea:focus,
+.financial-form input:focus,
+.financial-form select:focus {
+  border-color: #84a9ff;
+  box-shadow: 0 0 0 3px rgba(49,95,206,.08);
+}
+
+/* =========================================================
+   CAPACITY
+   ========================================================= */
+
+.gauge-track {
+  background: #eaecf0;
+}
+
+.gauge-value {
+  background: var(--sap-green);
+}
+
+/* =========================================================
+   ANIMAÇÃO
+   ========================================================= */
+
+.spin {
+  animation: sap-spin 1s linear infinite;
+}
+
+@keyframes sap-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   RESPONSIVIDADE FINAL
+   ========================================================= */
+
+@media (max-width: 1180px) {
+
+  .resource-kpis {
+    grid-template-columns: repeat(3,minmax(0,1fr));
+  }
+
+  .governance-summary-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+
+  .governance-project-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1050px) {
+
+  .financial-kpis {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+
+  .financial-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .raid-kpis {
+    grid-template-columns: repeat(3,minmax(0,1fr));
+  }
+
+  .module-kpis {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+
+  .resource-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+
+  .module-hero,
+  .resources-hero {
+    grid-template-columns: 44px minmax(0,1fr);
+  }
+
+  .module-hero > .primary-btn,
+  .resources-hero > .primary-btn {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .governance-summary-grid {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 760px) {
+
+  .content {
+    padding: 20px 15px 40px;
+  }
+
+  .module-hero,
+  .resources-hero {
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 16px;
+  }
+
+  .module-hero > .primary-btn,
+  .resources-hero > .primary-btn {
+    grid-column: auto;
+    width: 100%;
+  }
+
+  .module-kpis,
+  .financial-kpis,
+  .raid-kpis,
+  .resource-kpis,
+  .governance-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .governance-project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .governance-mini-grid,
+  .governance-financial {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .resource-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .raid-toolbar,
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .resource-table-head,
+  .financial-panel-head,
+  .raid-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .module-kpis,
+  .financial-kpis,
+  .raid-kpis,
+  .resource-kpis,
+  .governance-summary-grid,
+  .governance-mini-grid,
+  .governance-financial {
+    grid-template-columns: 1fr;
+  }
+
+  .resources-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .resources-actions > *,
+  .period-select {
+    width: 100%;
+  }
+
+  .governance-project {
+    padding: 14px;
+  }
+}
+
+/* =========================================================
+   FIM — FINAL UI PATCH
+   ========================================================= */
+
+
