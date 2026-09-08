@@ -1,54 +1,45 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
   Bell,
-  CalendarDays,
   CheckCircle2,
   Clock3,
   History,
-  RefreshCw,
   ShieldAlert,
   TrendingDown,
   TrendingUp,
   X,
   XCircle,
 } from "lucide-react";
+
 import { supabase, supabaseConfigured } from "./lib/supabase";
 
 type Project = {
   id: string;
   code: string;
   name: string;
-  status?: string;
-  current_phase?: string;
-  progress?: number;
-  spi?: number;
-  health_score?: number;
-  health_status?: string;
-  critical_risks?: number;
-  open_issues?: number;
-  overdue_actions?: number;
-  days_to_go_live?: number;
 };
 
 type StatusUpdate = {
   id: string;
   project_id: string;
-  reference_date: string;
+  author_id?: string | null;
+  reference_date?: string | null;
   overall_status?: string | null;
   progress?: number | null;
   achievements?: string | null;
   problems?: string | null;
   decisions_needed?: string | null;
   executive_comment?: string | null;
-  published: boolean;
-  created_at?: string;
+  published?: boolean | null;
+  created_at?: string | null;
 };
 
 type Snapshot = {
   id: string;
   project_id: string;
-  snapshot_date: string;
+  snapshot_date?: string | null;
   health_score?: number | null;
   schedule_score?: number | null;
   delivery_score?: number | null;
@@ -68,103 +59,149 @@ type Snapshot = {
   days_to_go_live?: number | null;
 };
 
-type AlertItem = {
+type Alert = {
   id: string;
   project_id: string;
-  alert_type: string;
-  severity: string;
-  title: string;
+  alert_type?: string | null;
+  severity?: string | null;
+  title?: string | null;
   description?: string | null;
   source_table?: string | null;
   source_id?: string | null;
-  acknowledged: boolean;
+  acknowledged?: boolean | null;
+  acknowledged_by?: string | null;
   acknowledged_at?: string | null;
-  created_at: string;
+  created_at?: string | null;
 };
 
-function health(score?: number | null) {
-  const value = Number(score || 0);
+type ExecutiveStatusProps = {
+  projects?: Project[];
+};
 
-  if (value < 60) return "critical";
-  if (value < 80) return "attention";
+type HealthStatus = "healthy" | "attention" | "critical";
+
+function normalizeStatus(status?: string | null): HealthStatus {
+  const value = String(status || "").toLowerCase();
+
+  if (
+    value.includes("critical") ||
+    value.includes("critico") ||
+    value.includes("crítico") ||
+    value.includes("red")
+  ) {
+    return "critical";
+  }
+
+  if (
+    value.includes("attention") ||
+    value.includes("warning") ||
+    value.includes("aten") ||
+    value.includes("yellow")
+  ) {
+    return "attention";
+  }
+
   return "healthy";
 }
 
-function healthLabel(value: string) {
-  if (value === "critical") return "Crítico";
-  if (value === "attention") return "Atenção";
+function statusLabel(status: HealthStatus) {
+  if (status === "critical") return "Crítico";
+  if (status === "attention") return "Atenção";
   return "Saudável";
+}
+
+function statusIcon(status: HealthStatus) {
+  if (status === "critical") return <XCircle size={17} />;
+  if (status === "attention") return <AlertTriangle size={17} />;
+  return <CheckCircle2 size={17} />;
 }
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
 
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
   return date.toLocaleDateString("pt-BR");
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 function formatNumber(value?: number | null, decimals = 0) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
     return "—";
   }
 
-  return Number(value).toLocaleString("pt-BR", {
+  return value.toLocaleString("pt-BR", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
 }
 
-function money(value?: number | null) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "—";
+function severityLabel(value?: string | null) {
+  const normalized = String(value || "").toLowerCase();
+
+  if (
+    normalized.includes("critical") ||
+    normalized.includes("critico") ||
+    normalized.includes("crítico")
+  ) {
+    return "Crítico";
   }
 
-  return Number(value).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  });
-}
+  if (
+    normalized.includes("high") ||
+    normalized.includes("alto") ||
+    normalized.includes("alta")
+  ) {
+    return "Alto";
+  }
 
-function severityLabel(value: string) {
-  if (value === "critical") return "Crítica";
-  if (value === "high") return "Alta";
-  if (value === "medium") return "Média";
-  return "Baixa";
-}
+  if (
+    normalized.includes("medium") ||
+    normalized.includes("moderate") ||
+    normalized.includes("medio") ||
+    normalized.includes("médio")
+  ) {
+    return "Médio";
+  }
 
-function severityClass(value: string) {
-  if (value === "critical") return "critical";
-  if (value === "high") return "high";
-  if (value === "medium") return "medium";
-  return "low";
+  return "Baixo";
 }
 
 export default function ExecutiveStatus({
-  projects,
-}: {
-  projects: Project[];
-}) {
+  projects = [],
+}: ExecutiveStatusProps) {
   const [updates, setUpdates] = useState<StatusUpdate[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [projectFilter, setProjectFilter] = useState("all");
-  const [view, setView] = useState<"overview" | "history" | "alerts">("overview");
-  const [selectedUpdate, setSelectedUpdate] = useState<StatusUpdate | null>(null);
-
-  const projectMap = useMemo(
-    () => new Map(projects.map((project) => [project.id, project])),
-    [projects]
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "history" | "alerts"
+  >("overview");
+  const [selectedUpdate, setSelectedUpdate] = useState<StatusUpdate | null>(
+    null
   );
+  const [loading, setLoading] = useState(true);
 
-  async function load() {
+  async function loadData() {
     setLoading(true);
-    setError("");
 
     if (!supabaseConfigured) {
       setUpdates([]);
@@ -174,86 +211,151 @@ export default function ExecutiveStatus({
       return;
     }
 
-    const [updatesResult, snapshotsResult, alertsResult] = await Promise.all([
-      supabase
-        .from("project_status_updates")
-        .select("*")
-        .order("reference_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("project_snapshots")
-        .select("*")
-        .order("snapshot_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("alerts")
-        .select("*")
-        .order("acknowledged", { ascending: true })
-        .order("created_at", { ascending: false }),
-    ]);
+    const [updatesResult, snapshotsResult, alertsResult] =
+      await Promise.all([
+        supabase
+          .from("project_status_updates")
+          .select("*")
+          .order("reference_date", { ascending: false })
+          .limit(100),
 
-    if (updatesResult.error || snapshotsResult.error || alertsResult.error) {
-      setError(
-        "Não foi possível carregar todo o histórico executivo. Verifique as permissões das tabelas no Supabase."
+        supabase
+          .from("project_snapshots")
+          .select("*")
+          .order("snapshot_date", { ascending: false })
+          .limit(200),
+
+        supabase
+          .from("alerts")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(100),
+      ]);
+
+    if (updatesResult.error) {
+      console.error(
+        "Erro ao carregar status executivos:",
+        updatesResult.error
       );
+    }
+
+    if (snapshotsResult.error) {
+      console.error(
+        "Erro ao carregar snapshots:",
+        snapshotsResult.error
+      );
+    }
+
+    if (alertsResult.error) {
+      console.error("Erro ao carregar alertas:", alertsResult.error);
     }
 
     setUpdates((updatesResult.data || []) as StatusUpdate[]);
     setSnapshots((snapshotsResult.data || []) as Snapshot[]);
-    setAlerts((alertsResult.data || []) as AlertItem[]);
+    setAlerts((alertsResult.data || []) as Alert[]);
     setLoading(false);
   }
 
   useEffect(() => {
-    load();
+    loadData();
   }, []);
 
-  const filteredUpdates = useMemo(
-    () =>
-      projectFilter === "all"
-        ? updates
-        : updates.filter((item) => item.project_id === projectFilter),
-    [updates, projectFilter]
+  const filteredUpdates = useMemo(() => {
+    if (selectedProject === "all") {
+      return updates;
+    }
+
+    return updates.filter(
+      (update) => update.project_id === selectedProject
+    );
+  }, [updates, selectedProject]);
+
+  const filteredSnapshots = useMemo(() => {
+    if (selectedProject === "all") {
+      return snapshots;
+    }
+
+    return snapshots.filter(
+      (snapshot) => snapshot.project_id === selectedProject
+    );
+  }, [snapshots, selectedProject]);
+
+  const filteredAlerts = useMemo(() => {
+    if (selectedProject === "all") {
+      return alerts;
+    }
+
+    return alerts.filter(
+      (alert) => alert.project_id === selectedProject
+    );
+  }, [alerts, selectedProject]);
+
+  const activeAlerts = filteredAlerts.filter(
+    (alert) => !alert.acknowledged
   );
 
-  const filteredSnapshots = useMemo(
-    () =>
-      projectFilter === "all"
-        ? snapshots
-        : snapshots.filter((item) => item.project_id === projectFilter),
-    [snapshots, projectFilter]
+  const criticalAlerts = activeAlerts.filter((alert) => {
+    const severity = String(alert.severity || "").toLowerCase();
+
+    return (
+      severity.includes("critical") ||
+      severity.includes("critico") ||
+      severity.includes("crítico")
+    );
+  });
+
+  const latestSnapshot = filteredSnapshots[0];
+
+  const latestUpdate = filteredUpdates[0];
+
+  const healthScore =
+    typeof latestSnapshot?.health_score === "number"
+      ? latestSnapshot.health_score
+      : null;
+
+  const progress =
+    typeof latestSnapshot?.progress === "number"
+      ? latestSnapshot.progress
+      : typeof latestUpdate?.progress === "number"
+        ? latestUpdate.progress
+        : null;
+
+  const spi =
+    typeof latestSnapshot?.spi === "number"
+      ? latestSnapshot.spi
+      : null;
+
+  const healthStatus = normalizeStatus(
+    latestUpdate?.overall_status ||
+      (typeof healthScore === "number"
+        ? healthScore < 60
+          ? "critical"
+          : healthScore < 80
+            ? "attention"
+            : "healthy"
+        : "healthy")
   );
 
-  const filteredAlerts = useMemo(
-    () =>
-      projectFilter === "all"
-        ? alerts
-        : alerts.filter((item) => item.project_id === projectFilter),
-    [alerts, projectFilter]
-  );
+  function projectName(projectId: string) {
+    return (
+      projects.find((project) => project.id === projectId)?.name ||
+      "Projeto não identificado"
+    );
+  }
 
-  const openAlerts = filteredAlerts.filter((alert) => !alert.acknowledged);
+  function projectCode(projectId: string) {
+    return (
+      projects.find((project) => project.id === projectId)?.code ||
+      "—"
+    );
+  }
 
-  const criticalAlerts = openAlerts.filter(
-    (alert) => alert.severity === "critical"
-  );
+  async function acknowledgeAlert(alert: Alert) {
+    if (!supabaseConfigured) {
+      return;
+    }
 
-  const latestSnapshots = useMemo(() => {
-    const map = new Map<string, Snapshot>();
-
-    filteredSnapshots.forEach((snapshot) => {
-      if (!map.has(snapshot.project_id)) {
-        map.set(snapshot.project_id, snapshot);
-      }
-    });
-
-    return Array.from(map.values());
-  }, [filteredSnapshots]);
-
-  async function acknowledge(alert: AlertItem) {
-    if (!supabaseConfigured) return;
-
-    const { error: requestError } = await supabase
+    const { error } = await supabase
       .from("alerts")
       .update({
         acknowledged: true,
@@ -261,8 +363,8 @@ export default function ExecutiveStatus({
       })
       .eq("id", alert.id);
 
-    if (requestError) {
-      setError("Não foi possível reconhecer o alerta.");
+    if (error) {
+      console.error("Erro ao reconhecer alerta:", error);
       return;
     }
 
@@ -279,75 +381,45 @@ export default function ExecutiveStatus({
     );
   }
 
+  if (loading) {
+    return (
+      <section className="content">
+        <div className="module-empty">
+          <ActivityIcon />
+          <strong>Carregando status executivo...</strong>
+          <span>
+            Consolidando histórico, snapshots e alertas do portfólio.
+          </span>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="content">
+    <section className="content executive-status-page">
       <div className="module-hero">
         <div className="module-icon">
-          <History size={26} />
+          <Bell size={22} />
         </div>
 
         <div>
-          <div className="eyebrow">EXECUTIVE STATUS</div>
+          <div className="eyebrow">EXECUTIVE CONTROL</div>
           <h2>Status Executivo</h2>
           <p>
-            Histórico de evolução, alertas e posicionamento executivo dos
+            Acompanhamento de saúde, histórico, alertas e evolução dos
             projetos SAP.
           </p>
         </div>
-
-        <button className="primary-btn" type="button" onClick={load}>
-          <RefreshCw size={16} />
-          Atualizar
-        </button>
       </div>
 
-      {error && (
-        <div className="error-banner">
-          <AlertTriangle size={17} />
-          {error}
-        </div>
-      )}
-
-      <div className="kpis module-kpis">
-        <Metric
-          title="Atualizações"
-          value={filteredUpdates.length}
-          icon={<History size={18} />}
-        />
-
-        <Metric
-          title="Snapshots"
-          value={filteredSnapshots.length}
-          icon={<CalendarDays size={18} />}
-        />
-
-        <Metric
-          title="Alertas abertos"
-          value={openAlerts.length}
-          icon={<Bell size={18} />}
-          tone={openAlerts.length ? "attention" : "healthy"}
-        />
-
-        <Metric
-          title="Alertas críticos"
-          value={criticalAlerts.length}
-          icon={<ShieldAlert size={18} />}
-          tone={criticalAlerts.length ? "critical" : "healthy"}
-        />
-      </div>
-
-      <section className="panel">
-        <div className="panel-head">
-          <div>
-            <h3>Centro Executivo</h3>
-            <p>
-              Acompanhe a evolução dos projetos e priorize os pontos de atenção.
-            </p>
-          </div>
+      <div className="status-toolbar">
+        <div className="status-project-filter">
+          <label htmlFor="status-project">Projeto</label>
 
           <select
-            value={projectFilter}
-            onChange={(event) => setProjectFilter(event.target.value)}
+            id="status-project"
+            value={selectedProject}
+            onChange={(event) => setSelectedProject(event.target.value)}
           >
             <option value="all">Todos os projetos</option>
 
@@ -359,301 +431,409 @@ export default function ExecutiveStatus({
           </select>
         </div>
 
-        <div className="module-tabs">
-          <button
-            type="button"
-            className={view === "overview" ? "active" : ""}
-            onClick={() => setView("overview")}
-          >
-            <TrendingUp size={15} />
-            Visão geral
-          </button>
+        <button
+          className="refresh"
+          type="button"
+          onClick={loadData}
+        >
+          Atualizar
+        </button>
+      </div>
 
-          <button
-            type="button"
-            className={view === "history" ? "active" : ""}
-            onClick={() => setView("history")}
-          >
-            <History size={15} />
-            Histórico
-          </button>
+      <div className="module-tabs">
+        <button
+          type="button"
+          className={activeTab === "overview" ? "active" : ""}
+          onClick={() => setActiveTab("overview")}
+        >
+          <TrendingUp size={16} />
+          Visão geral
+        </button>
 
-          <button
-            type="button"
-            className={view === "alerts" ? "active" : ""}
-            onClick={() => setView("alerts")}
-          >
-            <Bell size={15} />
-            Alertas
-            {openAlerts.length > 0 && <b>{openAlerts.length}</b>}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={activeTab === "history" ? "active" : ""}
+          onClick={() => setActiveTab("history")}
+        >
+          <History size={16} />
+          Histórico
+        </button>
 
-        {loading ? (
-          <div className="empty-state">
-            <RefreshCw size={22} className="spin" />
-            Carregando informações executivas...
-          </div>
-        ) : view === "overview" ? (
+        <button
+          type="button"
+          className={activeTab === "alerts" ? "active" : ""}
+          onClick={() => setActiveTab("alerts")}
+        >
+          <Bell size={16} />
+          Alertas
+          {activeAlerts.length > 0 && (
+            <span className="tab-badge">{activeAlerts.length}</span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === "overview" && (
+        <>
           <div className="status-executive-grid">
-            {projects.length === 0 ? (
-              <div className="empty-state">
-                Nenhum projeto disponível.
-              </div>
-            ) : (
-              projects
-                .filter(
-                  (project) =>
-                    projectFilter === "all" || project.id === projectFilter
-                )
-                .map((project) => {
-                  const projectSnapshot = latestSnapshots.find(
-                    (snapshot) => snapshot.project_id === project.id
-                  );
+            <StatusCard
+              icon={statusIcon(healthStatus)}
+              label="Health Score"
+              value={
+                healthScore === null
+                  ? "—"
+                  : formatNumber(Math.round(healthScore))
+              }
+              helper={statusLabel(healthStatus)}
+              tone={healthStatus}
+            />
 
-                  const projectAlerts = filteredAlerts.filter(
-                    (alert) => alert.project_id === project.id && !alert.acknowledged
-                  );
+            <StatusCard
+              icon={<TrendingUp size={18} />}
+              label="Progresso"
+              value={
+                progress === null
+                  ? "—"
+                  : `${formatNumber(Math.round(progress))}%`
+              }
+              helper="Última posição registrada"
+              tone="neutral"
+            />
 
-                  const score =
-                    projectSnapshot?.health_score ??
-                    project.health_score ??
-                    0;
+            <StatusCard
+              icon={<Clock3 size={18} />}
+              label="SPI"
+              value={formatNumber(spi, 2)}
+              helper={
+                spi !== null && spi < 1
+                  ? "Abaixo do planejado"
+                  : "Dentro do planejado"
+              }
+              tone={
+                spi !== null && spi < 1 ? "attention" : "healthy"
+              }
+            />
 
-                  const status = health(Number(score));
-
-                  return (
-                    <article className="status-project-card" key={project.id}>
-                      <div className="status-project-head">
-                        <div>
-                          <span className="eyebrow">
-                            {project.current_phase || "PROJETO SAP"}
-                          </span>
-
-                          <h3>{project.code}</h3>
-                          <p>{project.name}</p>
-                        </div>
-
-                        <span className={`health ${status}`}>
-                          <i />
-                          {Math.round(Number(score))}
-                        </span>
-                      </div>
-
-                      <div className="status-main-score">
-                        <div>
-                          <span>Health Score</span>
-                          <strong>{Math.round(Number(score))}</strong>
-                        </div>
-
-                        <div>
-                          <span>Status</span>
-                          <b>{healthLabel(status)}</b>
-                        </div>
-                      </div>
-
-                      <div className="status-metrics">
-                        <MetricSmall
-                          label="Progresso"
-                          value={`${formatNumber(
-                            projectSnapshot?.progress ?? project.progress
-                          )}%`}
-                        />
-
-                        <MetricSmall
-                          label="SPI"
-                          value={formatNumber(
-                            projectSnapshot?.spi ?? project.spi,
-                            2
-                          )}
-                        />
-
-                        <MetricSmall
-                          label="Riscos"
-                          value={formatNumber(
-                            projectSnapshot?.critical_risks ??
-                              project.critical_risks
-                          )}
-                        />
-
-                        <MetricSmall
-                          label="Atrasos"
-                          value={formatNumber(
-                            projectSnapshot?.overdue_actions ??
-                              project.overdue_actions
-                          )}
-                        />
-                      </div>
-
-                      <div className="status-alert-summary">
-                        {projectAlerts.length > 0 ? (
-                          <>
-                            <AlertTriangle size={15} />
-                            <span>
-                              {projectAlerts.length} alerta
-                              {projectAlerts.length !== 1 ? "s" : ""} aberto
-                              {projectAlerts.length !== 1 ? "s" : ""}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 size={15} />
-                            <span>Sem alertas pendentes</span>
-                          </>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })
-            )}
+            <StatusCard
+              icon={<ShieldAlert size={18} />}
+              label="Alertas ativos"
+              value={activeAlerts.length}
+              helper={`${criticalAlerts.length} críticos`}
+              tone={
+                criticalAlerts.length > 0
+                  ? "critical"
+                  : activeAlerts.length > 0
+                    ? "attention"
+                    : "healthy"
+              }
+            />
           </div>
-        ) : view === "history" ? (
-          <div className="status-history">
-            {filteredUpdates.length === 0 ? (
-              <div className="empty-state">
-                <History size={28} />
-                <strong>Nenhuma atualização registrada</strong>
-                <span>
-                  O histórico executivo aparecerá aqui quando os status forem
-                  publicados.
+
+          <div className="status-content-grid">
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Última atualização executiva</h3>
+                  <p>
+                    Registro mais recente publicado para o portfólio
+                    selecionado.
+                  </p>
+                </div>
+
+                <span className="count">
+                  {formatDate(latestUpdate?.reference_date)}
                 </span>
               </div>
-            ) : (
-              filteredUpdates.map((update) => {
-                const project = projectMap.get(update.project_id);
+
+              {latestUpdate ? (
+                <div className="status-update-card">
+                  <div className="status-update-head">
+                    <div>
+                      <strong>
+                        {projectCode(latestUpdate.project_id)}
+                      </strong>
+                      <span>
+                        {projectName(latestUpdate.project_id)}
+                      </span>
+                    </div>
+
+                    <StatusBadge
+                      status={normalizeStatus(
+                        latestUpdate.overall_status
+                      )}
+                    />
+                  </div>
+
+                  <div className="status-update-body">
+                    <StatusField
+                      label="Comentário executivo"
+                      value={latestUpdate.executive_comment}
+                    />
+
+                    <StatusField
+                      label="Conquistas"
+                      value={latestUpdate.achievements}
+                    />
+
+                    <StatusField
+                      label="Problemas"
+                      value={latestUpdate.problems}
+                    />
+
+                    <StatusField
+                      label="Decisões necessárias"
+                      value={latestUpdate.decisions_needed}
+                    />
+                  </div>
+
+                  <button
+                    className="secondary-btn"
+                    type="button"
+                    onClick={() => setSelectedUpdate(latestUpdate)}
+                  >
+                    Ver atualização completa
+                  </button>
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<History size={22} />}
+                  title="Nenhuma atualização registrada"
+                  description="Os status executivos aparecerão aqui após o primeiro registro."
+                />
+              )}
+            </section>
+
+            <section className="panel">
+              <div className="panel-head">
+                <div>
+                  <h3>Alertas prioritários</h3>
+                  <p>
+                    Pontos que exigem acompanhamento da governança.
+                  </p>
+                </div>
+
+                <span className="count">
+                  {activeAlerts.length}
+                </span>
+              </div>
+
+              {activeAlerts.length > 0 ? (
+                <div className="status-alert-list">
+                  {activeAlerts.slice(0, 5).map((alert) => (
+                    <AlertRow
+                      key={alert.id}
+                      alert={alert}
+                      projectCode={projectCode(alert.project_id)}
+                      onAcknowledge={acknowledgeAlert}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<CheckCircle2 size={22} />}
+                  title="Nenhum alerta ativo"
+                  description="O portfólio não possui alertas pendentes de reconhecimento."
+                />
+              )}
+            </section>
+          </div>
+
+          <section className="panel">
+            <div className="panel-head">
+              <div>
+                <h3>Projetos em acompanhamento</h3>
+                <p>
+                  Último status executivo conhecido por projeto.
+                </p>
+              </div>
+
+              <span className="count">
+                {projects.length} projetos
+              </span>
+            </div>
+
+            <div className="status-project-list">
+              {projects.map((project) => {
+                const projectUpdate = updates.find(
+                  (update) => update.project_id === project.id
+                );
+
+                const projectSnapshot = snapshots.find(
+                  (snapshot) => snapshot.project_id === project.id
+                );
+
+                const score =
+                  typeof projectSnapshot?.health_score === "number"
+                    ? Math.round(projectSnapshot.health_score)
+                    : null;
+
+                const status = normalizeStatus(
+                  projectUpdate?.overall_status ||
+                    (score !== null
+                      ? score < 60
+                        ? "critical"
+                        : score < 80
+                          ? "attention"
+                          : "healthy"
+                      : "healthy")
+                );
 
                 return (
                   <button
-                    className="status-history-row"
+                    className="status-project-card"
                     type="button"
-                    key={update.id}
-                    onClick={() => setSelectedUpdate(update)}
+                    key={project.id}
+                    onClick={() => setSelectedProject(project.id)}
                   >
-                    <div className="status-history-date">
-                      <CalendarDays size={15} />
-                      {formatDate(update.reference_date)}
+                    <div className="status-project-main">
+                      <strong>{project.code}</strong>
+                      <span>{project.name}</span>
                     </div>
 
-                    <div className="status-history-project">
-                      <strong>{project?.code || "Projeto"}</strong>
-                      <span>{project?.name || "—"}</span>
-                    </div>
+                    <StatusBadge status={status} />
 
-                    <div className="status-history-progress">
-                      <span>Progresso</span>
+                    <div className="status-project-score">
                       <strong>
-                        {formatNumber(update.progress)}%
+                        {score === null ? "—" : score}
                       </strong>
+                      <span>Health</span>
                     </div>
 
-                    <div
-                      className={`status-history-status ${health(
-                        update.progress
-                      )}`}
-                    >
-                      {update.overall_status || "Atualização"}
+                    <div className="status-project-progress">
+                      <strong>
+                        {typeof projectSnapshot?.progress === "number"
+                          ? `${Math.round(projectSnapshot.progress)}%`
+                          : "—"}
+                      </strong>
+                      <span>Progresso</span>
                     </div>
-
-                    <TrendingUp size={16} />
                   </button>
                 );
-              })
-            )}
+              })}
+            </div>
+          </section>
+        </>
+      )}
+
+      {activeTab === "history" && (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>Histórico executivo</h3>
+              <p>
+                Evolução dos status publicados ao longo do tempo.
+              </p>
+            </div>
+
+            <span className="count">
+              {filteredUpdates.length} registros
+            </span>
           </div>
-        ) : (
-          <div className="status-alerts">
-            {filteredAlerts.length === 0 ? (
-              <div className="empty-state">
-                <CheckCircle2 size={28} />
-                <strong>Nenhum alerta registrado</strong>
-                <span>
-                  O centro de alertas está sem ocorrências.
-                </span>
-              </div>
-            ) : (
-              filteredAlerts.map((alert) => {
-                const project = projectMap.get(alert.project_id);
 
-                return (
-                  <article
-                    className={`status-alert ${severityClass(alert.severity)} ${
-                      alert.acknowledged ? "acknowledged" : ""
-                    }`}
-                    key={alert.id}
-                  >
-                    <div className="status-alert-icon">
-                      {alert.severity === "critical" ? (
-                        <XCircle size={18} />
-                      ) : alert.severity === "high" ? (
-                        <AlertTriangle size={18} />
-                      ) : (
-                        <Bell size={18} />
-                      )}
-                    </div>
+          {filteredUpdates.length > 0 ? (
+            <div className="status-history">
+              {filteredUpdates.map((update) => (
+                <button
+                  className="status-history-row"
+                  type="button"
+                  key={update.id}
+                  onClick={() => setSelectedUpdate(update)}
+                >
+                  <div className="history-date">
+                    <strong>
+                      {formatDate(update.reference_date)}
+                    </strong>
+                    <span>
+                      {formatDateTime(update.created_at)}
+                    </span>
+                  </div>
 
-                    <div className="status-alert-content">
-                      <div className="status-alert-top">
-                        <span>
-                          {project?.code || "Projeto"} ·{" "}
-                          {severityLabel(alert.severity)}
-                        </span>
+                  <div className="history-project">
+                    <strong>
+                      {projectCode(update.project_id)}
+                    </strong>
+                    <span>
+                      {projectName(update.project_id)}
+                    </span>
+                  </div>
 
-                        <small>{formatDate(alert.created_at)}</small>
-                      </div>
+                  <StatusBadge
+                    status={normalizeStatus(update.overall_status)}
+                  />
 
-                      <strong>{alert.title}</strong>
+                  <div className="history-progress">
+                    <strong>
+                      {typeof update.progress === "number"
+                        ? `${Math.round(update.progress)}%`
+                        : "—"}
+                    </strong>
+                    <span>Progresso</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<History size={22} />}
+              title="Histórico vazio"
+              description="Ainda não existem atualizações executivas registradas."
+            />
+          )}
+        </section>
+      )}
 
-                      <p>{alert.description || "Sem descrição."}</p>
+      {activeTab === "alerts" && (
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>Central de alertas</h3>
+              <p>
+                Alertas gerados pelos controles de governança do
+                portfólio.
+              </p>
+            </div>
 
-                      {alert.source_table && (
-                        <small>Origem: {alert.source_table}</small>
-                      )}
-                    </div>
-
-                    <div className="status-alert-action">
-                      {alert.acknowledged ? (
-                        <span className="status-pill ok">
-                          Reconhecido
-                        </span>
-                      ) : (
-                        <button
-                          className="secondary-btn"
-                          type="button"
-                          onClick={() => acknowledge(alert)}
-                        >
-                          <CheckCircle2 size={14} />
-                          Reconhecer
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })
-            )}
+            <span className="count">
+              {filteredAlerts.length} alertas
+            </span>
           </div>
-        )}
-      </section>
+
+          {filteredAlerts.length > 0 ? (
+            <div className="status-alert-list">
+              {filteredAlerts.map((alert) => (
+                <AlertRow
+                  key={alert.id}
+                  alert={alert}
+                  projectCode={projectCode(alert.project_id)}
+                  onAcknowledge={acknowledgeAlert}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<CheckCircle2 size={22} />}
+              title="Nenhum alerta registrado"
+              description="Os alertas de governança aparecerão nesta área."
+            />
+          )}
+        </section>
+      )}
 
       {selectedUpdate && (
         <div
-          className="modal-backdrop"
-          onClick={() => setSelectedUpdate(null)}
+          className="drawer-backdrop"
+          onMouseDown={() => setSelectedUpdate(null)}
         >
-          <div
-            className="raid-modal status-update-modal"
-            onClick={(event) => event.stopPropagation()}
+          <aside
+            className="drawer"
+            onMouseDown={(event) => event.stopPropagation()}
           >
-            <div className="schedule-modal-head">
+            <div className="drawer-head">
               <div>
-                <span className="section-kicker">
-                  EXECUTIVE STATUS UPDATE
-                </span>
-
-                <h3>Atualização executiva</h3>
-
+                <div className="eyebrow">EXECUTIVE UPDATE</div>
+                <h2>Atualização executiva</h2>
                 <p>
-                  {projectMap.get(selectedUpdate.project_id)?.code || "Projeto"}{" "}
-                  · {formatDate(selectedUpdate.reference_date)}
+                  {projectCode(selectedUpdate.project_id)} —{" "}
+                  {projectName(selectedUpdate.project_id)}
                 </p>
               </div>
 
@@ -667,50 +847,72 @@ export default function ExecutiveStatus({
               </button>
             </div>
 
-            <div className="status-update-content">
-              <div className="status-update-kpis">
-                <MetricSmall
-                  label="Progresso"
-                  value={`${formatNumber(selectedUpdate.progress)}%`}
+            <div className="drawer-content">
+              <div className="drawer-status-row">
+                <StatusBadge
+                  status={normalizeStatus(
+                    selectedUpdate.overall_status
+                  )}
                 />
 
-                <MetricSmall
-                  label="Status"
-                  value={selectedUpdate.overall_status || "—"}
-                />
-
-                <MetricSmall
-                  label="Publicado"
-                  value={selectedUpdate.published ? "Sim" : "Não"}
-                />
+                <span>
+                  Referência:{" "}
+                  {formatDate(selectedUpdate.reference_date)}
+                </span>
               </div>
 
-              <StatusText
+              <DetailBlock
+                title="Comentário executivo"
+                value={selectedUpdate.executive_comment}
+              />
+
+              <DetailBlock
                 title="Conquistas"
-                icon={<CheckCircle2 size={15} />}
                 value={selectedUpdate.achievements}
               />
 
-              <StatusText
+              <DetailBlock
                 title="Problemas"
-                icon={<AlertTriangle size={15} />}
                 value={selectedUpdate.problems}
               />
 
-              <StatusText
+              <DetailBlock
                 title="Decisões necessárias"
-                icon={<Clock3 size={15} />}
                 value={selectedUpdate.decisions_needed}
               />
 
-              <StatusText
-                title="Comentário executivo"
-                icon={<TrendingUp size={15} />}
-                value={selectedUpdate.executive_comment}
-              />
+              <div className="drawer-metric-grid">
+                <div>
+                  <span>Progresso</span>
+                  <strong>
+                    {typeof selectedUpdate.progress === "number"
+                      ? `${Math.round(selectedUpdate.progress)}%`
+                      : "—"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Publicado</span>
+                  <strong>
+                    {selectedUpdate.published ? "Sim" : "Não"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Criado em</span>
+                  <strong>
+                    {formatDateTime(selectedUpdate.created_at)}
+                  </strong>
+                </div>
+              </div>
             </div>
 
-            <div className="schedule-modal-footer">
+            <div className="drawer-footer">
+              <span>
+                <History size={13} />
+                Histórico executivo
+              </span>
+
               <button
                 className="secondary-btn"
                 type="button"
@@ -719,67 +921,170 @@ export default function ExecutiveStatus({
                 Fechar
               </button>
             </div>
-          </div>
+          </aside>
         </div>
       )}
     </section>
   );
 }
 
-function Metric({
-  title,
-  value,
+function StatusCard({
   icon,
+  label,
+  value,
+  helper,
   tone,
 }: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  tone?: string;
+  icon: ReactNode;
+  label: string;
+  value: string | number;
+  helper: string;
+  tone: string;
 }) {
   return (
-    <div className={`kpi ${tone || ""}`}>
-      <div className="kpi-icon">{icon}</div>
+    <div className={`status-card ${tone}`}>
+      <div className="status-card-icon">{icon}</div>
       <div>
-        <span>{title}</span>
+        <span>{label}</span>
         <strong>{value}</strong>
+        <small>{helper}</small>
       </div>
     </div>
   );
 }
 
-function MetricSmall({
+function StatusBadge({ status }: { status: HealthStatus }) {
+  return (
+    <span className={`status-badge ${status}`}>
+      {statusIcon(status)}
+      {statusLabel(status)}
+    </span>
+  );
+}
+
+function StatusField({
   label,
   value,
 }: {
   label: string;
-  value: string;
+  value?: string | null;
 }) {
+  if (!value) {
+    return null;
+  }
+
   return (
-    <div className="status-metric-small">
+    <div className="status-field">
       <span>{label}</span>
-      <strong>{value}</strong>
+      <p>{value}</p>
     </div>
   );
 }
 
-function StatusText({
+function DetailBlock({
   title,
-  icon,
   value,
 }: {
   title: string;
-  icon: React.ReactNode;
   value?: string | null;
 }) {
   return (
-    <div className="status-text-block">
-      <div>
-        {icon}
-        <strong>{title}</strong>
-      </div>
-
-      <p>{value || "Nenhuma informação registrada."}</p>
+    <div className="detail-block">
+      <span>{title}</span>
+      <p>{value || "Não informado."}</p>
     </div>
   );
+}
+
+function AlertRow({
+  alert,
+  projectCode,
+  onAcknowledge,
+}: {
+  alert: Alert;
+  projectCode: string;
+  onAcknowledge: (alert: Alert) => void;
+}) {
+  const severity = String(alert.severity || "").toLowerCase();
+
+  const tone =
+    severity.includes("critical") ||
+    severity.includes("critico") ||
+    severity.includes("crítico")
+      ? "critical"
+      : severity.includes("high") ||
+          severity.includes("alto") ||
+          severity.includes("alta")
+        ? "attention"
+        : "neutral";
+
+  return (
+    <div className={`status-alert-row ${tone}`}>
+      <div className="status-alert-icon">
+        {tone === "critical" ? (
+          <XCircle size={18} />
+        ) : tone === "attention" ? (
+          <AlertTriangle size={18} />
+        ) : (
+          <Bell size={18} />
+        )}
+      </div>
+
+      <div className="status-alert-content">
+        <div className="status-alert-title">
+          <strong>{alert.title || "Alerta de governança"}</strong>
+
+          <span className={`severity ${tone}`}>
+            {severityLabel(alert.severity)}
+          </span>
+        </div>
+
+        <p>{alert.description || "Sem descrição."}</p>
+
+        <div className="status-alert-meta">
+          <span>{projectCode}</span>
+          <span>{formatDateTime(alert.created_at)}</span>
+        </div>
+      </div>
+
+      {!alert.acknowledged && (
+        <button
+          className="alert-acknowledge"
+          type="button"
+          onClick={() => onAcknowledge(alert)}
+        >
+          Reconhecer
+        </button>
+      )}
+
+      {alert.acknowledged && (
+        <span className="alert-acknowledged">
+          <CheckCircle2 size={15} />
+          Reconhecido
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="module-empty">
+      {icon}
+      <strong>{title}</strong>
+      <span>{description}</span>
+    </div>
+  );
+}
+
+function ActivityIcon() {
+  return <TrendingDown size={22} />;
 }
