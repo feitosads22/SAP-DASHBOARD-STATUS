@@ -24,6 +24,7 @@ import Financeiro from "./Financeiro";
 import RAID from "./RAID";
 import Recursos from "./Recursos";
 import RACI from "./RACI";
+import Governanca from "./Governanca";
 
 type Project = {
   id: string;
@@ -41,7 +42,7 @@ type Project = {
   days_to_go_live?: number;
 };
 
-type Module = "portfolio" | "schedule" | "raid" | "financial" | "resources" | "raci";
+type Module = "portfolio" | "schedule" | "raid" | "financial" | "resources" | "raci" | "governance";
 
 const demoProjects: Project[] = [
   {
@@ -146,6 +147,7 @@ function App() {
     financial: "Financeiro",
     resources: "Recursos",
     raci: "RACI",
+    governance: "Governança",
   };
 
   function navigate(next: Module) {
@@ -209,6 +211,12 @@ function App() {
             onClick={() => navigate("raci")}
             icon={<ShieldCheck size={18} />}
             label="RACI"
+          />
+          <NavButton
+            active={module === "governance"}
+            onClick={() => navigate("governance")}
+            icon={<Activity size={18} />}
+            label="Governança"
           />
         </nav>
 
@@ -286,6 +294,10 @@ function App() {
 
         {module === "raci" && (
           <RACI projects={projects.map((project) => ({ id: project.id, code: project.code, name: project.name }))} />
+        )}
+
+        {module === "governance" && (
+          <Governanca projects={projects} />
         )}
       </main>
 
