@@ -23,6 +23,7 @@ import Recursos from "./Recursos";
 import RACI from "./RACI";
 import Governanca from "./Governanca";
 import ExecutiveDashboard from "./components/ExecutiveDashboard";
+import ProjectDrilldown from "./components/ProjectDrilldown";
 
 type Project = {
   id: string;
@@ -72,6 +73,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [module, setModule] = useState<Module>("portfolio");
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   async function loadProjects() {
     setLoading(true);
@@ -117,6 +119,15 @@ function App() {
   function navigate(next: Module) {
     setModule(next);
     setMenuOpen(false);
+    setSelectedProject(null);
+  }
+
+  function openProject(project: Project) {
+    setSelectedProject(project);
+  }
+
+  function closeProject() {
+    setSelectedProject(null);
   }
 
   return (
@@ -245,7 +256,13 @@ function App() {
           </div>
         )}
 
-        {module === "portfolio" && <ExecutiveDashboard />}
+        {module === "portfolio" && (
+          <ExecutiveDashboard
+            projects={projects}
+            loading={loading}
+            onProjectSelect={openProject}
+          />
+        )}
 
         {module === "schedule" && (
           <Cronograma projects={projects} />
@@ -289,6 +306,11 @@ function App() {
           </div>
         )}
       </main>
+
+      <ProjectDrilldown
+        project={selectedProject}
+        onClose={closeProject}
+      />
     </div>
   );
 }
