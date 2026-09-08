@@ -1508,3 +1508,216 @@ tbody tr:last-child td {
 @media(max-width:900px){.module-hero{align-items:flex-start;flex-direction:column}.raid-breakdown{grid-template-columns:repeat(2,1fr)}.raid-toolbar{grid-template-columns:1fr 1fr}.search-box{grid-column:1/-1}.raid-modal{padding:20px}}
 @media(max-width:600px){.module-hero h2{font-size:23px}.module-hero .primary-btn{width:100%}.raid-kpis{grid-template-columns:1fr 1fr}.raid-breakdown{grid-template-columns:1fr 1fr}.raid-toolbar{grid-template-columns:1fr}.search-box{grid-column:auto}.raid-footnote{flex-direction:column}.form-grid{grid-template-columns:1fr}.form-field.full{grid-column:auto}.modal-backdrop{padding:10px}.raid-modal{max-height:calc(100vh - 20px);padding:18px}.raid-table th,.raid-table td{white-space:nowrap}}
 @media(max-width:380px){.raid-kpis,.raid-breakdown{grid-template-columns:1fr}}
+
+/* =========================================================
+   UI FIX — RAID / MODULE ALIGNMENT
+   ========================================================= */
+
+.raid-module {
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.raid-module .module-hero {
+  min-height: 72px;
+  align-items: center;
+}
+
+.raid-module .module-hero > div:first-child {
+  min-width: 0;
+}
+
+.raid-module .module-hero .eyebrow {
+  margin-bottom: 2px;
+}
+
+.raid-module .module-hero h2 {
+  line-height: 1.15;
+}
+
+.raid-kpis {
+  align-items: stretch;
+}
+
+.raid-metric {
+  min-width: 0;
+}
+
+.raid-metric-icon {
+  flex: 0 0 38px;
+}
+
+.raid-metric > div:last-child {
+  min-width: 0;
+}
+
+.raid-metric span,
+.raid-metric strong {
+  white-space: nowrap;
+}
+
+.raid-breakdown-item {
+  min-width: 0;
+}
+
+.raid-breakdown-item > div:first-child {
+  flex: 0 0 28px;
+}
+
+.raid-breakdown-item span {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.raid-panel .panel-head {
+  min-height: 74px;
+}
+
+.raid-panel-head > div:first-child {
+  min-width: 0;
+}
+
+.raid-panel-head .refresh {
+  flex: 0 0 auto;
+}
+
+.raid-toolbar {
+  align-items: center;
+}
+
+.search-box,
+.filter-box,
+.select-control {
+  min-width: 0;
+}
+
+.search-box {
+  overflow: hidden;
+}
+
+.search-box svg,
+.filter-box svg {
+  flex: 0 0 auto;
+}
+
+.search-box input {
+  min-width: 0;
+}
+
+.raid-table {
+  table-layout: auto;
+}
+
+.raid-table th,
+.raid-table td {
+  vertical-align: middle;
+}
+
+.raid-table th:first-child,
+.raid-table td:first-child {
+  padding-left: 22px;
+}
+
+.raid-table th:last-child,
+.raid-table td:last-child {
+  padding-right: 22px;
+}
+
+.raid-type,
+.priority-badge,
+.raid-status {
+  line-height: 1;
+}
+
+.owner-cell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.owner-cell svg {
+  flex: 0 0 auto;
+}
+
+.row-actions {
+  justify-content: flex-end;
+}
+
+.raid-empty {
+  min-height: 260px;
+}
+
+.raid-footnote {
+  align-items: center;
+}
+
+/* Keep the desktop shell visible until the true mobile breakpoint. */
+@media (min-width: 901px) {
+  .sidebar {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+  }
+
+  main {
+    display: block;
+  }
+}
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .raid-toolbar {
+    grid-template-columns: 1.4fr repeat(2, 1fr);
+  }
+
+  .raid-toolbar .search-box {
+    grid-column: 1 / -1;
+  }
+
+  .raid-breakdown {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .raid-module {
+    padding-top: 24px;
+  }
+}
+
+@media (max-width: 600px) {
+  .raid-module .module-hero {
+    gap: 16px;
+  }
+
+  .raid-module .module-hero h2 {
+    font-size: 24px;
+  }
+
+  .raid-kpis {
+    gap: 8px;
+  }
+
+  .raid-metric {
+    padding: 13px;
+    gap: 9px;
+  }
+
+  .raid-metric-icon {
+    width: 34px;
+    flex-basis: 34px;
+  }
+
+  .raid-metric strong {
+    font-size: 21px;
+  }
+
+  .raid-panel .panel-head {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .raid-panel-head .refresh {
+    height: 36px;
+    padding: 0 11px;
+  }
+}
