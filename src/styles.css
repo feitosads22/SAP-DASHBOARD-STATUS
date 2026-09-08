@@ -3143,3 +3143,608 @@ tbody tr:last-child td {
     padding: 14px;
   }
 }
+/* =========================================================
+   FINAL UI ALIGNMENT — MODULE SCREENS
+   ========================================================= */
+
+.content {
+  width: min(100%, 1480px);
+  margin: 0 auto;
+  padding: 28px 34px 48px;
+  box-sizing: border-box;
+}
+
+.content,
+.content *,
+.module-page,
+.module-page *,
+.module-hero,
+.module-hero * {
+  box-sizing: border-box;
+}
+
+.module-hero {
+  width: 100%;
+  min-width: 0;
+  min-height: 96px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  overflow: hidden;
+}
+
+.module-hero > div,
+.module-hero > section {
+  min-width: 0;
+}
+
+.module-hero h1,
+.module-hero h2,
+.module-hero h3 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.module-hero p {
+  width: 100%;
+  max-width: 900px;
+  margin: 5px 0 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.module-icon {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  display: grid;
+  place-items: center;
+}
+
+.module-hero .primary-btn,
+.module-hero .secondary-btn,
+.module-hero .refresh {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.module-kpis {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.module-kpis .kpi {
+  width: 100%;
+  min-width: 0;
+  min-height: 104px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  overflow: hidden;
+}
+
+.module-kpis .kpi-icon {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+}
+
+.module-kpis .kpi > div {
+  min-width: 0;
+}
+
+.module-kpis .kpi span,
+.module-kpis .kpi strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.module-kpis .kpi strong {
+  white-space: nowrap;
+}
+
+.module-toolbar {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+
+.module-toolbar > * {
+  min-width: 0;
+}
+
+.toolbar {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar > * {
+  min-width: 0;
+}
+
+.search-field {
+  min-width: 240px;
+  flex: 1 1 280px;
+}
+
+.search-field input {
+  width: 100%;
+  min-width: 0;
+}
+
+select,
+input,
+textarea {
+  max-width: 100%;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.table-card,
+.data-card,
+.panel,
+.card,
+.module-card,
+.content-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.table-wrap,
+.table-container,
+.data-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+th,
+td {
+  vertical-align: middle;
+}
+
+th {
+  white-space: nowrap;
+}
+
+td {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.description,
+.item-description,
+.raid-description,
+.resource-description,
+.card-description,
+.module-description {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.45;
+}
+
+.raid-description {
+  display: block;
+}
+
+.raid-card,
+.resource-card,
+.raci-card,
+.governance-card,
+.financial-card,
+.schedule-card,
+.lesson-card,
+.status-card {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.raid-grid,
+.resources-grid,
+.raci-grid,
+.governance-grid,
+.financial-grid,
+.schedule-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.raid-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.resources-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.raci-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.governance-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.financial-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.schedule-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card-header,
+.raid-card-head,
+.resource-card-head,
+.lesson-card-head,
+.status-card-head {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-header > *,
+.raid-card-head > *,
+.resource-card-head > *,
+.lesson-card-head > *,
+.status-card-head > * {
+  min-width: 0;
+}
+
+.card-title,
+.raid-title,
+.resource-title,
+.lesson-title,
+.status-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.card-title h3,
+.raid-title h3,
+.resource-title h3,
+.lesson-title h3,
+.status-title h3 {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.badge,
+.status-badge,
+.priority-badge,
+.type-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.action-row,
+.card-actions,
+.raid-actions,
+.resource-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-row button,
+.card-actions button,
+.raid-actions button,
+.resource-actions button {
+  flex: 0 0 auto;
+}
+
+.module-tabs {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 18px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.module-tabs button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.status-executive-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.status-content-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 14px;
+}
+
+.status-update-card,
+.status-alert-list,
+.status-project-list,
+.status-history {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+.lessons-summary {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lessons-list {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lesson-card {
+  min-width: 0;
+}
+
+.lesson-content,
+.lesson-section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.drawer {
+  width: min(720px, 94vw);
+  max-width: 94vw;
+}
+
+.drawer-content,
+.drawer-body {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.form-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.form-grid > * {
+  min-width: 0;
+}
+
+.form-full {
+  grid-column: 1 / -1;
+}
+
+.modal {
+  width: min(760px, 94vw);
+  max-width: 94vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.executive-health,
+.executive-reading,
+.executive-progress,
+.health-drivers,
+.executive-kpis {
+  min-width: 0;
+  width: 100%;
+}
+
+.executive-kpis,
+.health-drivers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.executive-metric,
+.driver {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.executive-metric strong,
+.driver strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.placeholder-card {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .content {
+    padding: 24px 26px 42px;
+  }
+
+  .module-kpis,
+  .financial-grid,
+  .executive-kpis,
+  .health-drivers,
+  .status-executive-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .raid-grid,
+  .resources-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: 22px 20px 36px;
+  }
+
+  .module-hero {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .module-hero .primary-btn,
+  .module-hero .secondary-btn,
+  .module-hero .refresh {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .status-content-grid,
+  .raci-grid,
+  .governance-grid,
+  .schedule-grid,
+  .lessons-list {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 18px 14px 30px;
+  }
+
+  .module-hero {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .module-icon {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+  }
+
+  .module-hero h1,
+  .module-hero h2 {
+    font-size: 20px;
+  }
+
+  .module-hero p {
+    font-size: 11px;
+  }
+
+  .module-kpis,
+  .financial-grid,
+  .executive-kpis,
+  .health-drivers,
+  .status-executive-grid,
+  .lessons-summary,
+  .raid-grid,
+  .resources-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-hero .primary-btn,
+  .module-hero .secondary-btn,
+  .module-hero .refresh {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .search-field {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .toolbar > button,
+  .toolbar > select {
+    width: 100%;
+  }
+
+  .card-header,
+  .raid-card-head,
+  .resource-card-head,
+  .lesson-card-head,
+  .status-card-head {
+    flex-direction: column;
+  }
+
+  .action-row,
+  .card-actions,
+  .raid-actions,
+  .resource-actions {
+    width: 100%;
+  }
+
+  .action-row button,
+  .card-actions button,
+  .raid-actions button,
+  .resource-actions button {
+    flex: 1 1 auto;
+  }
+
+  .drawer {
+    width: 100%;
+    max-width: 100%;
+  }
+}
