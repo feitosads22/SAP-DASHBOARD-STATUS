@@ -1288,6 +1288,7 @@ grid-template-columns: 1fr;
 .section-title {
 align-items: flex-start;
 }
+}
 
 @media (max-width: 390px) {
 .executive-kpis,
@@ -1299,6 +1300,9 @@ grid-template-columns: 1fr;
 
 .topbar-left .eyebrow {
 display: none;
+}
+}
+}
 }
 
 .schedule-page { padding-top: 28px; }
@@ -3062,4 +3066,8 @@ width: 100%;
 
 .governance-project {
 padding: 14px;
+}
+}
+}
+}
 }
