@@ -11,6 +11,7 @@ import {
   RefreshCw,
   ShieldAlert,
   Users,
+  ShieldCheck,
   X,
   Activity,
   Target,
@@ -22,6 +23,7 @@ import Cronograma from "./Cronograma";
 import Financeiro from "./Financeiro";
 import RAID from "./RAID";
 import Recursos from "./Recursos";
+import RACI from "./RACI";
 
 type Project = {
   id: string;
@@ -39,7 +41,7 @@ type Project = {
   days_to_go_live?: number;
 };
 
-type Module = "portfolio" | "schedule" | "raid" | "financial" | "resources";
+type Module = "portfolio" | "schedule" | "raid" | "financial" | "resources" | "raci";
 
 const demoProjects: Project[] = [
   {
@@ -143,6 +145,7 @@ function App() {
     raid: "RAID",
     financial: "Financeiro",
     resources: "Recursos",
+    raci: "RACI",
   };
 
   function navigate(next: Module) {
@@ -200,6 +203,12 @@ function App() {
             onClick={() => navigate("resources")}
             icon={<Users size={18} />}
             label="Recursos"
+          />
+          <NavButton
+            active={module === "raci"}
+            onClick={() => navigate("raci")}
+            icon={<ShieldCheck size={18} />}
+            label="RACI"
           />
         </nav>
 
@@ -273,6 +282,10 @@ function App() {
 
         {module === "resources" && (
           <Recursos projects={projects} />
+        )}
+
+        {module === "raci" && (
+          <RACI projects={projects.map((project) => ({ id: project.id, code: project.code, name: project.name }))} />
         )}
       </main>
 
