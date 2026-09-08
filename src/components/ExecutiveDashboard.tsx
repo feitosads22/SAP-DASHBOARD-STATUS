@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -11,7 +11,6 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { supabase, supabaseConfigured } from "../lib/supabase";
 
 type Project = {
   id: string;
@@ -29,27 +28,33 @@ type Project = {
   days_to_go_live?: number;
 };
 
+type ExecutiveDashboardProps = {
+  projects?: Project[];
+  loading?: boolean;
+  onProjectSelect?: (project: Project) => void;
+};
+
 type HealthStatus = "healthy" | "attention" | "critical";
 
-function normalizeHealth(status?: string): HealthStatus {
-  const value = (status || "").toLowerCase().trim();
+function normalizeHealth(
+  status?: string,
+  score?: number
+): HealthStatus {
+  const value = String(status || "").toLowerCase();
 
   if (
     value.includes("critical") ||
-    value.includes("critical") ||
-    value.includes("red") ||
+    value.includes("critico") ||
     value.includes("crítico") ||
-    value.includes("critico")
+    (typeof score === "number" && score < 60)
   ) {
     return "critical";
   }
 
   if (
     value.includes("attention") ||
-    value.includes("warning") ||
-    value.includes("yellow") ||
-    value.includes("atenção") ||
-    value.includes("atencao")
+    value.includes("aten") ||
+    (typeof score === "number" && score < 80)
   ) {
     return "attention";
   }
@@ -58,14 +63,20 @@ function normalizeHealth(status?: string): HealthStatus {
 }
 
 function healthText(status: HealthStatus) {
-  if (status === "critical") return "Crítico";
-  if (status === "attention") return "Atenção";
-  return "Healthy";
+  if (status === "critical") {
+    return "Crítico";
+  }
+
+  if (status === "attention") {
+    return "Atenção";
+  }
+
+  return "Saudável";
 }
 
 function healthDescription(status: HealthStatus) {
   if (status === "critical") {
-    return "Requer atuação executiva";
+    return "Necessita atuação executiva";
   }
 
   if (status === "attention") {
@@ -75,98 +86,105 @@ function healthDescription(status: HealthStatus) {
   return "Dentro do esperado";
 }
 
-function formatNumber(value: unknown) {
-  return Math.round(Number(value || 0));
-}
-
-function ExecutiveDashboard() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  async function loadDashboard() {
-    setLoading(true);
-    setError("");
-
-    if (!supabaseConfigured) {
-      setProjects([]);
-      setLoading(false);
-      return;
-    }
-
-    const { data, error: queryError } = await supabase
-      .from("v_project_dashboard")
-      .select("*")
-      .order("health_score", { ascending: true });
-
-    if (queryError) {
-      console.error("Erro ao carregar Executive Dashboard:", queryError);
-      setError("Não foi possível carregar os dados do portfolio.");
-      setProjects([]);
-    } else {
-      setProjects((data || []) as Project[]);
-    }
-
-    setLoading(false);
+function formatNumber(value?: number, decimals = 0) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "-";
   }
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+export default function ExecutiveDashboard({
+  projects = [],
+  loading = false,
+  onProjectSelect,
+}: ExecutiveDashboardProps) {
+  const [filter, setFilter] = useState<"all" | HealthStatus>("all");
 
   const metrics = useMemo(() => {
     const healthy = projects.filter(
-      (project) => normalizeHealth(project.health_status) === "healthy"
+      (project) =>
+        normalizeHealth(
+          project.health_status,
+          project.health_score
+        ) === "healthy"
     ).length;
 
     const attention = projects.filter(
-      (project) => normalizeHealth(project.health_status) === "attention"
+      (project) =>
+        normalizeHealth(
+          project.health_status,
+          project.health_score
+        ) === "attention"
     ).length;
 
     const critical = projects.filter(
-      (project) => normalizeHealth(project.health_status) === "critical"
+      (project) =>
+        normalizeHealth(
+          project.health_status,
+          project.health_score
+        ) === "critical"
     ).length;
 
-    const averageHealth = projects.length
-      ? projects.reduce(
-          (total, project) => total + Number(project.health_score || 0),
-          0
-        ) / projects.length
-      : 0;
+    const healthValues = projects
+      .map((project) => project.health_score)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
-    const averageProgress = projects.length
-      ? projects.reduce(
-          (total, project) => total + Number(project.progress || 0),
-          0
-        ) / projects.length
-      : 0;
+    const progressValues = projects
+      .map((project) => project.progress)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
 
-    const averageSpi = projects.length
-      ? projects.reduce(
-          (total, project) => total + Number(project.spi || 0),
-          0
-        ) / projects.length
-      : 0;
+    const spiValues = projects
+      .map((project) => project.spi)
+      .filter(
+        (value): value is number =>
+          typeof value === "number" && !Number.isNaN(value)
+      );
+
+    const averageHealth =
+      healthValues.length > 0
+        ? healthValues.reduce((sum, value) => sum + value, 0) /
+          healthValues.length
+        : 0;
+
+    const averageProgress =
+      progressValues.length > 0
+        ? progressValues.reduce((sum, value) => sum + value, 0) /
+          progressValues.length
+        : 0;
+
+    const averageSpi =
+      spiValues.length > 0
+        ? spiValues.reduce((sum, value) => sum + value, 0) /
+          spiValues.length
+        : 0;
 
     const criticalRisks = projects.reduce(
-      (total, project) => total + Number(project.critical_risks || 0),
+      (sum, project) => sum + (project.critical_risks || 0),
       0
     );
 
     const openIssues = projects.reduce(
-      (total, project) => total + Number(project.open_issues || 0),
+      (sum, project) => sum + (project.open_issues || 0),
       0
     );
 
     const overdueActions = projects.reduce(
-      (total, project) => total + Number(project.overdue_actions || 0),
+      (sum, project) => sum + (project.overdue_actions || 0),
       0
     );
 
-    const raidTotal =
-      criticalRisks + openIssues + overdueActions;
-
     return {
+      total: projects.length,
       healthy,
       attention,
       critical,
@@ -176,159 +194,204 @@ function ExecutiveDashboard() {
       criticalRisks,
       openIssues,
       overdueActions,
-      raidTotal,
     };
   }, [projects]);
 
+  const filteredProjects = useMemo(() => {
+    if (filter === "all") {
+      return projects;
+    }
+
+    return projects.filter(
+      (project) =>
+        normalizeHealth(
+          project.health_status,
+          project.health_score
+        ) === filter
+    );
+  }, [projects, filter]);
+
   const attentionProjects = useMemo(() => {
-    return [...projects]
-      .filter(
-        (project) =>
-          normalizeHealth(project.health_status) !== "healthy"
-      )
+    return projects
+      .filter((project) => {
+        const health = normalizeHealth(
+          project.health_status,
+          project.health_score
+        );
+
+        return health !== "healthy";
+      })
       .sort(
         (a, b) =>
-          Number(a.health_score || 0) -
-          Number(b.health_score || 0)
+          (a.health_score || 0) - (b.health_score || 0)
       )
-      .slice(0, 6);
+      .slice(0, 5);
   }, [projects]);
 
   const nextGoLives = useMemo(() => {
-    return [...projects]
-      .filter((project) => project.days_to_go_live != null)
+    return projects
+      .filter(
+        (project) =>
+          typeof project.days_to_go_live === "number" &&
+          project.days_to_go_live >= 0
+      )
       .sort(
         (a, b) =>
-          Number(a.days_to_go_live) -
-          Number(b.days_to_go_live)
+          (a.days_to_go_live || 0) -
+          (b.days_to_go_live || 0)
       )
       .slice(0, 5);
   }, [projects]);
 
   if (loading) {
     return (
-      <section className="executive-dashboard">
+      <div className="executive-dashboard">
         <div className="executive-loading">
-          <Activity size={22} />
-          <span>Carregando Executive Dashboard...</span>
+          <Activity size={20} />
+          <span>Carregando visão executiva...</span>
         </div>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="executive-dashboard">
-        <div className="executive-error">
-          <AlertTriangle size={22} />
-          <div>
-            <strong>Erro no dashboard</strong>
-            <span>{error}</span>
-          </div>
-          <button type="button" onClick={loadDashboard}>
-            Tentar novamente
-          </button>
-        </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section className="executive-dashboard">
+    <div className="executive-dashboard">
       <div className="executive-header">
         <div>
-          <span className="executive-kicker">
+          <div className="executive-kicker">
             EXECUTIVE PORTFOLIO
-          </span>
-          <h2>Visão executiva SAP</h2>
+          </div>
+
+          <h2>Controle Executivo SAP</h2>
+
           <p>
-            Acompanhe a saúde, execução e principais pontos de
-            atenção do portfolio.
+            Visão consolidada de saúde, entrega, riscos e próximos marcos.
           </p>
         </div>
 
         <div className="executive-header-status">
           <span className="status-dot" />
-          <span>
-            {supabaseConfigured
-              ? "Dados atualizados do Supabase"
-              : "Modo demonstração"}
-          </span>
+          {projects.length > 0
+            ? "Dados atualizados"
+            : "Nenhum projeto"}
         </div>
       </div>
 
       <div className="executive-kpi-grid">
-        <ExecutiveKpi
-          icon={<Target size={19} />}
-          label="Projetos"
-          value={projects.length}
-          description="No portfolio"
-        />
+        <button
+          type="button"
+          className="executive-kpi"
+          onClick={() => setFilter("all")}
+        >
+          <div className="executive-kpi-icon">
+            <Target size={19} />
+          </div>
 
-        <ExecutiveKpi
-          icon={<CheckCircle2 size={19} />}
-          label="Healthy"
-          value={metrics.healthy}
-          description="Dentro do esperado"
-          tone="healthy"
-        />
+          <div className="executive-kpi-content">
+            <span>Projetos no portfólio</span>
+            <strong>{metrics.total}</strong>
+            <small>Projetos monitorados</small>
+          </div>
+        </button>
 
-        <ExecutiveKpi
-          icon={<AlertTriangle size={19} />}
-          label="Atenção"
-          value={metrics.attention}
-          description="Requer acompanhamento"
-          tone="attention"
-        />
+        <button
+          type="button"
+          className="executive-kpi healthy"
+          onClick={() => setFilter("healthy")}
+        >
+          <div className="executive-kpi-icon">
+            <CheckCircle2 size={19} />
+          </div>
 
-        <ExecutiveKpi
-          icon={<XCircle size={19} />}
-          label="Crítico"
-          value={metrics.critical}
-          description="Requer ação executiva"
-          tone="critical"
-        />
+          <div className="executive-kpi-content">
+            <span>Projetos saudáveis</span>
+            <strong>{metrics.healthy}</strong>
+            <small>
+              {metrics.total > 0
+                ? `${formatNumber(
+                    (metrics.healthy / metrics.total) * 100
+                  )}% do portfólio`
+                : "Sem dados"}
+            </small>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="executive-kpi attention"
+          onClick={() => setFilter("attention")}
+        >
+          <div className="executive-kpi-icon">
+            <AlertTriangle size={19} />
+          </div>
+
+          <div className="executive-kpi-content">
+            <span>Projetos em atenção</span>
+            <strong>{metrics.attention}</strong>
+            <small>Requerem acompanhamento</small>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          className="executive-kpi critical"
+          onClick={() => setFilter("critical")}
+        >
+          <div className="executive-kpi-icon">
+            <XCircle size={19} />
+          </div>
+
+          <div className="executive-kpi-content">
+            <span>Projetos críticos</span>
+            <strong>{metrics.critical}</strong>
+            <small>Necessitam ação executiva</small>
+          </div>
+        </button>
       </div>
 
       <div className="executive-main-grid">
-        <section className="executive-panel executive-health-panel">
+        <section className="executive-panel">
           <div className="executive-panel-header">
             <div>
-              <span className="panel-kicker">PORTFOLIO HEALTH</span>
-              <h3>Saúde do portfolio</h3>
+              <div className="panel-kicker">
+                PORTFOLIO HEALTH
+              </div>
+
+              <h3>Saúde do portfólio</h3>
             </div>
 
-            <Activity size={19} />
+            <Activity size={17} />
           </div>
 
           <div className="health-overview">
             <div className="health-score-large">
               <strong>
-                {Math.round(metrics.averageHealth)}
+                {formatNumber(metrics.averageHealth)}
               </strong>
+
               <span>Health Score médio</span>
             </div>
 
             <div className="health-distribution">
               <HealthDistribution
-                label="Healthy"
+                label="Saudável"
                 value={metrics.healthy}
-                total={projects.length}
-                tone="healthy"
+                total={metrics.total}
+                status="healthy"
               />
 
               <HealthDistribution
                 label="Atenção"
                 value={metrics.attention}
-                total={projects.length}
-                tone="attention"
+                total={metrics.total}
+                status="attention"
               />
 
               <HealthDistribution
                 label="Crítico"
                 value={metrics.critical}
-                total={projects.length}
-                tone="critical"
+                total={metrics.total}
+                status="critical"
               />
             </div>
           </div>
@@ -337,39 +400,43 @@ function ExecutiveDashboard() {
         <section className="executive-panel">
           <div className="executive-panel-header">
             <div>
-              <span className="panel-kicker">DELIVERY</span>
+              <div className="panel-kicker">
+                DELIVERY PERFORMANCE
+              </div>
+
               <h3>Performance de entrega</h3>
             </div>
 
-            <TrendingUp size={19} />
+            <TrendingUp size={17} />
           </div>
 
           <div className="delivery-metrics">
-            <MetricBlock
-              label="Progresso médio"
-              value={`${Math.round(metrics.averageProgress)}%`}
-            />
+            <div className="delivery-metric">
+              <span>Progresso médio</span>
+              <strong>
+                {formatNumber(metrics.averageProgress)}%
+              </strong>
+            </div>
 
-            <MetricBlock
-              label="SPI médio"
-              value={
-                projects.length
-                  ? metrics.averageSpi.toFixed(2)
-                  : "—"
-              }
-            />
+            <div className="delivery-metric">
+              <span>SPI médio</span>
+              <strong>
+                {formatNumber(metrics.averageSpi, 2)}
+              </strong>
+            </div>
 
-            <MetricBlock
-              label="Projetos"
-              value={projects.length}
-            />
+            <div className="delivery-metric">
+              <span>Projetos</span>
+              <strong>{metrics.total}</strong>
+            </div>
           </div>
 
           <div className="delivery-progress">
             <div className="delivery-progress-head">
-              <span>Execução média</span>
+              <span>Execução média do portfólio</span>
+
               <strong>
-                {Math.round(metrics.averageProgress)}%
+                {formatNumber(metrics.averageProgress)}%
               </strong>
             </div>
 
@@ -391,45 +458,56 @@ function ExecutiveDashboard() {
       <section className="executive-panel executive-raid-panel">
         <div className="executive-panel-header">
           <div>
-            <span className="panel-kicker">RAID</span>
+            <div className="panel-kicker">
+              RAID EXECUTIVE
+            </div>
+
             <h3>Principais pontos de atenção</h3>
           </div>
 
-          <span className="raid-total">
-            {metrics.raidTotal} itens
-          </span>
+          <div className="raid-total">
+            {metrics.criticalRisks +
+              metrics.openIssues +
+              metrics.overdueActions}{" "}
+            itens
+          </div>
         </div>
 
         <div className="raid-executive-grid">
           <RaidExecutiveCard
-            icon={<ShieldAlert size={20} />}
+            icon={<ShieldAlert size={17} />}
             value={metrics.criticalRisks}
             label="Riscos críticos"
-            description="Riscos que exigem atenção"
-            tone="critical"
+            description="Riscos que exigem atuação"
+            status="critical"
           />
 
           <RaidExecutiveCard
-            icon={<AlertTriangle size={20} />}
+            icon={<AlertTriangle size={17} />}
             value={metrics.openIssues}
             label="Issues abertas"
-            description="Problemas em tratamento"
-            tone="attention"
+            description="Pendências em acompanhamento"
+            status="attention"
           />
 
           <RaidExecutiveCard
-            icon={<Clock3 size={20} />}
+            icon={<Clock3 size={17} />}
             value={metrics.overdueActions}
             label="Ações atrasadas"
             description="Ações fora do prazo"
-            tone="attention"
+            status="critical"
           />
 
           <RaidExecutiveCard
-            icon={<Target size={20} />}
-            value="—"
-            label="Decisões"
-            description="Decisões executivas pendentes"
+            icon={<Activity size={17} />}
+            value={formatNumber(metrics.averageSpi, 2)}
+            label="SPI médio"
+            description="Performance do cronograma"
+            status={
+              metrics.averageSpi < 1
+                ? "attention"
+                : "healthy"
+            }
           />
         </div>
       </section>
@@ -438,56 +516,61 @@ function ExecutiveDashboard() {
         <section className="executive-panel">
           <div className="executive-panel-header">
             <div>
-              <span className="panel-kicker">EXECUTIVE ATTENTION</span>
+              <div className="panel-kicker">
+                EXECUTIVE ATTENTION
+              </div>
+
               <h3>Projetos que exigem atenção</h3>
             </div>
 
-            <ShieldAlert size={19} />
+            <AlertTriangle size={17} />
           </div>
 
           {attentionProjects.length === 0 ? (
             <div className="executive-empty">
               <CheckCircle2 size={22} />
+
               <strong>Nenhum projeto crítico</strong>
+
               <span>
-                O portfolio não possui projetos classificados
-                como Atenção ou Crítico.
+                Todos os projetos estão dentro dos parâmetros esperados.
               </span>
             </div>
           ) : (
             <div className="attention-list">
               {attentionProjects.map((project) => {
-                const status = normalizeHealth(
-                  project.health_status
-                );
-
-                const health = Math.round(
-                  Number(project.health_score || 0)
+                const health = normalizeHealth(
+                  project.health_status,
+                  project.health_score
                 );
 
                 return (
-                  <div
-                    className={`attention-project ${status}`}
+                  <button
                     key={project.id}
+                    type="button"
+                    className={`attention-project ${health}`}
+                    onClick={() => onProjectSelect?.(project)}
                   >
                     <div className="attention-project-main">
-                      <div className="attention-project-code">
+                      <span className="attention-project-code">
                         {project.code}
-                      </div>
+                      </span>
 
                       <strong>{project.name}</strong>
 
                       <span>
-                        {project.current_phase ||
-                          "Fase não informada"}
+                        {healthDescription(health)}
                       </span>
                     </div>
 
                     <div className="attention-project-health">
-                      <strong>{health}</strong>
-                      <span>{healthText(status)}</span>
+                      <strong>
+                        {formatNumber(project.health_score)}
+                      </strong>
+
+                      <span>{healthText(health)}</span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -497,30 +580,32 @@ function ExecutiveDashboard() {
         <section className="executive-panel">
           <div className="executive-panel-header">
             <div>
-              <span className="panel-kicker">MILESTONES</span>
+              <div className="panel-kicker">
+                DELIVERY MILESTONES
+              </div>
+
               <h3>Próximos Go-Lives</h3>
             </div>
 
-            <CalendarDays size={19} />
+            <CalendarDays size={17} />
           </div>
 
           {nextGoLives.length === 0 ? (
             <div className="executive-empty">
               <CalendarDays size={22} />
-              <strong>Sem datas disponíveis</strong>
+
+              <strong>Nenhum Go-Live informado</strong>
+
               <span>
-                Cadastre as informações de Go-Live no
-                portfolio.
+                Não existem datas de Go-Live disponíveis.
               </span>
             </div>
           ) : (
             <div className="golive-list">
               {nextGoLives.map((project) => {
-                const days = Number(
-                  project.days_to_go_live || 0
-                );
+                const days = project.days_to_go_live || 0;
 
-                const urgency =
+                const status =
                   days <= 30
                     ? "critical"
                     : days <= 60
@@ -528,21 +613,26 @@ function ExecutiveDashboard() {
                       : "healthy";
 
                 return (
-                  <div className="golive-item" key={project.id}>
+                  <button
+                    key={project.id}
+                    type="button"
+                    className="golive-item"
+                    onClick={() => onProjectSelect?.(project)}
+                  >
                     <div className="golive-icon">
-                      <CalendarDays size={17} />
+                      <CalendarDays size={16} />
                     </div>
 
                     <div className="golive-main">
-                      <strong>{project.code}</strong>
-                      <span>{project.name}</span>
+                      <strong>{project.name}</strong>
+                      <span>{project.code}</span>
                     </div>
 
-                    <div className={`golive-days ${urgency}`}>
+                    <div className={`golive-days ${status}`}>
                       <strong>{days}</strong>
                       <span>dias</span>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -553,105 +643,105 @@ function ExecutiveDashboard() {
       <section className="executive-panel">
         <div className="executive-panel-header">
           <div>
-            <span className="panel-kicker">
-              PORTFOLIO OVERVIEW
-            </span>
-            <h3>Projetos</h3>
+            <div className="panel-kicker">
+              PROJECT PORTFOLIO
+            </div>
+
+            <h3>Projetos do portfólio</h3>
           </div>
 
-          <span className="project-count">
-            {projects.length} projetos
-          </span>
+          <div className="project-count">
+            {filteredProjects.length} projetos
+          </div>
         </div>
 
-        {projects.length === 0 ? (
+        {filteredProjects.length === 0 ? (
           <div className="executive-empty">
             <Users size={22} />
+
             <strong>Nenhum projeto encontrado</strong>
+
             <span>
-              Não existem registros disponíveis em
-              v_project_dashboard.
+              Não existem projetos para o filtro selecionado.
             </span>
           </div>
         ) : (
           <div className="executive-project-table">
             <div className="executive-table-head">
               <span>Projeto</span>
-              <span>Health</span>
+              <span>Saúde</span>
               <span>Progresso</span>
               <span>SPI</span>
-              <span>Go-Live</span>
               <span>RAID</span>
+              <span>Go-Live</span>
             </div>
 
-            {projects.map((project) => {
-              const status = normalizeHealth(
-                project.health_status
+            {filteredProjects.map((project) => {
+              const health = normalizeHealth(
+                project.health_status,
+                project.health_score
               );
-
-              const progress = Math.min(
-                100,
-                Math.max(0, Number(project.progress || 0))
-              );
-
-              const raid =
-                Number(project.critical_risks || 0) +
-                Number(project.open_issues || 0) +
-                Number(project.overdue_actions || 0);
 
               return (
-                <div
-                  className="executive-table-row"
+                <button
                   key={project.id}
+                  type="button"
+                  className="executive-table-row"
+                  onClick={() => onProjectSelect?.(project)}
                 >
-                  <div className="project-info">
+                  <span className="project-info">
                     <strong>{project.code}</strong>
                     <span>{project.name}</span>
-                  </div>
+                  </span>
 
-                  <div className={`project-health ${status}`}>
-                    <span className="health-indicator" />
+                  <span className={`project-health ${health}`}>
+                    <i className="health-indicator" />
+
                     <strong>
                       {formatNumber(project.health_score)}
                     </strong>
-                    <small>
-                      {healthDescription(status)}
-                    </small>
-                  </div>
 
-                  <div className="project-progress">
-                    <div>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
+                    <small>{healthText(health)}</small>
+                  </span>
 
-                    <div className="mini-progress-track">
-                      <div
+                  <span className="project-progress">
+                    <span>
+                      {formatNumber(project.progress)}%
+                    </span>
+
+                    <span className="mini-progress-track">
+                      <span
                         className="mini-progress-value"
                         style={{
-                          width: `${progress}%`,
+                          width: `${Math.min(
+                            100,
+                            Math.max(
+                              0,
+                              project.progress || 0
+                            )
+                          )}%`,
                         }}
                       />
-                    </div>
-                  </div>
+                    </span>
+                  </span>
 
-                  <div className="project-value">
-                    {project.spi == null
-                      ? "—"
-                      : Number(project.spi).toFixed(2)}
-                  </div>
+                  <span className="project-value">
+                    {formatNumber(project.spi, 2)}
+                  </span>
 
-                  <div className="project-value">
-                    {project.days_to_go_live == null
-                      ? "—"
-                      : `${Math.round(
-                          Number(project.days_to_go_live)
-                        )}d`}
-                  </div>
+                  <span className="project-raid">
+                    {(project.critical_risks || 0) +
+                      (project.open_issues || 0) +
+                      (project.overdue_actions || 0)}
+                  </span>
 
-                  <div className="project-raid">
-                    {raid}
-                  </div>
-                </div>
+                  <span className="project-value">
+                    {typeof project.days_to_go_live ===
+                    "number"
+                      ? `${project.days_to_go_live}d`
+                      : "-"}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -660,40 +750,13 @@ function ExecutiveDashboard() {
 
       <div className="executive-footer">
         <span>
-          <Activity size={14} />
+          <Activity size={11} />
           SAP PMO Control Tower
         </span>
 
         <span>
-          Atualizado em{" "}
-          {new Date().toLocaleDateString("pt-BR")}
+          Indicadores consolidados do portfólio
         </span>
-      </div>
-    </section>
-  );
-}
-
-function ExecutiveKpi({
-  icon,
-  label,
-  value,
-  description,
-  tone = "",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  description: string;
-  tone?: string;
-}) {
-  return (
-    <div className={`executive-kpi ${tone}`}>
-      <div className="executive-kpi-icon">{icon}</div>
-
-      <div className="executive-kpi-content">
-        <span>{label}</span>
-        <strong>{value}</strong>
-        <small>{description}</small>
       </div>
     </div>
   );
@@ -703,19 +766,18 @@ function HealthDistribution({
   label,
   value,
   total,
-  tone,
+  status,
 }: {
   label: string;
   value: number;
   total: number;
-  tone: string;
+  status: HealthStatus;
 }) {
-  const percentage = total
-    ? Math.round((value / total) * 100)
-    : 0;
+  const percentage =
+    total > 0 ? (value / total) * 100 : 0;
 
   return (
-    <div className={`health-distribution-item ${tone}`}>
+    <div className={`health-distribution-item ${status}`}>
       <div className="health-distribution-head">
         <span>{label}</span>
         <strong>{value}</strong>
@@ -725,27 +787,17 @@ function HealthDistribution({
         <div
           className="health-distribution-value"
           style={{
-            width: `${percentage}%`,
+            width: `${Math.min(
+              100,
+              Math.max(0, percentage)
+            )}%`,
           }}
         />
       </div>
 
-      <small>{percentage}% do portfolio</small>
-    </div>
-  );
-}
-
-function MetricBlock({
-  label,
-  value,
-}: {
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <div className="delivery-metric">
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <small>
+        {formatNumber(percentage)}% do portfólio
+      </small>
     </div>
   );
 }
@@ -755,16 +807,16 @@ function RaidExecutiveCard({
   value,
   label,
   description,
-  tone = "",
+  status,
 }: {
-  icon: React.ReactNode;
-  value: string | number;
+  icon: ReactNode;
+  value: number | string;
   label: string;
   description: string;
-  tone?: string;
+  status: HealthStatus;
 }) {
   return (
-    <div className={`raid-executive-card ${tone}`}>
+    <div className={`raid-executive-card ${status}`}>
       <div className="raid-executive-icon">
         {icon}
       </div>
@@ -780,5 +832,3 @@ function RaidExecutiveCard({
     </div>
   );
 }
-
-export default ExecutiveDashboard;
