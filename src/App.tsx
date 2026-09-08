@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import {
+  Activity,
   AlertTriangle,
+  BookOpen,
   CalendarDays,
   CircleDollarSign,
   LayoutDashboard,
+  Link2,
   LogOut,
   Menu,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
+  Target,
   Users,
   X,
-  Activity,
 } from "lucide-react";
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
@@ -22,8 +25,11 @@ import RAID from "./RAID";
 import Recursos from "./Recursos";
 import RACI from "./RACI";
 import Governanca from "./Governanca";
+import GovernancaOperacional from "./GovernancaOperacional";
+import LicoesAprendidas from "./LicoesAprendidas";
 import ExecutiveDashboard from "./components/ExecutiveDashboard";
 import ProjectDrilldown from "./components/ProjectDrilldown";
+import ExecutiveStatus from "./ExecutiveStatus";
 
 type Project = {
   id: string;
@@ -48,7 +54,10 @@ type Module =
   | "financial"
   | "resources"
   | "raci"
-  | "governance";
+  | "governance"
+  | "governance-operational"
+  | "lessons"
+  | "status";
 
 const demoProjects: Project[] = [
   {
@@ -67,13 +76,38 @@ const demoProjects: Project[] = [
   },
 ];
 
+function statusLabel(status?: string) {
+  const value = (status || "").toLowerCase().trim();
+
+  if (
+    value.includes("critical") ||
+    value.includes("red") ||
+    value.includes("crítico") ||
+    value.includes("critico")
+  ) {
+    return "critical";
+  }
+
+  if (
+    value.includes("attention") ||
+    value.includes("warning") ||
+    value.includes("yellow") ||
+    value.includes("atenção") ||
+    value.includes("atencao")
+  ) {
+    return "attention";
+  }
+
+  return "healthy";
+}
+
 function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [connected, setConnected] = useState(false);
   const [module, setModule] = useState<Module>("portfolio");
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   async function loadProjects() {
     setLoading(true);
@@ -114,12 +148,15 @@ function App() {
     resources: "Recursos",
     raci: "RACI",
     governance: "Governança",
+    "governance-operational": "Governança Operacional",
+    lessons: "Lições Aprendidas",
+    status: "Status Executivo",
   };
 
   function navigate(next: Module) {
     setModule(next);
-    setMenuOpen(false);
     setSelectedProject(null);
+    setMenuOpen(false);
   }
 
   function openProject(project: Project) {
@@ -129,6 +166,12 @@ function App() {
   function closeProject() {
     setSelectedProject(null);
   }
+
+  const projectRefs = projects.map((project) => ({
+    id: project.id,
+    code: project.code,
+    name: project.name,
+  }));
 
   return (
     <div className="app">
@@ -200,12 +243,35 @@ function App() {
             icon={<Activity size={18} />}
             label="Governança"
           />
+
+          <NavButton
+            active={module === "governance-operational"}
+            onClick={() => navigate("governance-operational")}
+            icon={<Target size={18} />}
+            label="Follow-up"
+          />
+
+          <NavButton
+            active={module === "lessons"}
+            onClick={() => navigate("lessons")}
+            icon={<BookOpen size={18} />}
+            label="Lições Aprendidas"
+          />
+
+          <NavButton
+            active={module === "status"}
+            onClick={() => navigate("status")}
+            icon={<Link2 size={18} />}
+            label="Status Executivo"
+          />
         </nav>
 
         <div className="sidebar-footer">
           <div className="connection">
             <span className={connected ? "dot on" : "dot"} />
-            {connected ? "Supabase conectado" : "Configure o Supabase"}
+            {connected
+              ? "Supabase conectado"
+              : "Configure o Supabase"}
           </div>
 
           <button className="nav-item" type="button">
@@ -248,9 +314,13 @@ function App() {
             <AlertTriangle size={18} />
 
             <div>
-              <strong>Conexão ainda não configurada.</strong>
+              <strong>
+                Conexão ainda não configurada.
+              </strong>
+
               <span>
-                Configure as variáveis do projeto Supabase na Vercel.
+                Configure as variáveis do projeto Supabase
+                na Vercel.
               </span>
             </div>
           </div>
@@ -269,13 +339,7 @@ function App() {
         )}
 
         {module === "raid" && (
-          <RAID
-            projects={projects.map((project) => ({
-              id: project.id,
-              code: project.code,
-              name: project.name,
-            }))}
-          />
+          <RAID projects={projectRefs} />
         )}
 
         {module === "financial" && (
@@ -287,23 +351,23 @@ function App() {
         )}
 
         {module === "raci" && (
-          <RACI
-            projects={projects.map((project) => ({
-              id: project.id,
-              code: project.code,
-              name: project.name,
-            }))}
-          />
+          <RACI projects={projectRefs} />
         )}
 
         {module === "governance" && (
           <Governanca projects={projects} />
         )}
 
-        {loading && module !== "portfolio" && (
-          <div className="loading-state">
-            Carregando dados...
-          </div>
+        {module === "governance-operational" && (
+          <GovernancaOperacional projects={projectRefs} />
+        )}
+
+        {module === "lessons" && (
+          <LicoesAprendidas projects={projectRefs} />
+        )}
+
+        {module === "status" && (
+          <ExecutiveStatus projects={projects} />
         )}
       </main>
 
