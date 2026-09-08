@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
-  CalendarDays,
+  CalendarClock,
   CheckCircle2,
+  ChevronDown,
   Clock3,
-  Edit3,
   Link2,
-  RefreshCw,
+  ListChecks,
   Search,
   ShieldAlert,
-  Target,
-  UserRound,
+  Users,
   X,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./lib/supabase";
@@ -21,51 +21,39 @@ type Project = {
   name: string;
 };
 
-type GovernanceType = "action" | "decision" | "dependency";
-
-type GovernanceStatus =
-  | "open"
-  | "in_progress"
-  | "resolved"
-  | "accepted"
-  | "cancelled";
-
-type GovernanceItem = {
+type RaidItem = {
   id: string;
   project_id: string;
-  type: GovernanceType;
+  type: string;
   title: string;
   description?: string | null;
-  status: GovernanceStatus;
-  priority: string;
+  status: string;
+  priority?: string | null;
   owner?: string | null;
   due_date?: string | null;
-  action_plan?: string | null;
   decision?: string | null;
   dependency?: string | null;
-  updated_at?: string | null;
+  action_plan?: string | null;
 };
 
-const typeLabels: Record<GovernanceType, string> = {
-  action: "Ação",
-  decision: "Decisão",
-  dependency: "Dependência",
+type FilterType = "all" | "action" | "decision" | "dependency";
+
+type FormState = {
+  status: string;
+  owner: string;
+  due_date: string;
 };
 
-const statusLabels: Record<GovernanceStatus, string> = {
-  open: "Aberto",
-  in_progress: "Em andamento",
-  resolved: "Concluído",
-  accepted: "Aceito",
-  cancelled: "Cancelado",
-};
+function projectName(projects: Project[], id: string) {
+  const project = projects.find((item) => item.id === id);
+  return project ? `${project.code} · ${project.name}` : "Projeto";
+}
 
-function dateText(value?: string | null) {
-  if (!value) return "—";
+function dateLabel(value?: string | null) {
+  if (!value) return "Sem prazo";
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("pt-BR");
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("pt-BR");
 }
 
 function daysToDue(value?: string | null) {
@@ -73,51 +61,59 @@ function daysToDue(value?: string | null) {
 
   const target = new Date(`${value.slice(0, 10)}T00:00:00`).getTime();
   const now = new Date();
-  const today = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  ).getTime();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
   if (!Number.isFinite(target)) return null;
 
   return Math.round((target - today) / 86400000);
 }
 
-function isOpen(status: GovernanceStatus) {
-  return !["resolved", "cancelled"].includes(status);
+function typeLabel(type: string) {
+  if (type === "action") return "Ação";
+  if (type === "decision") return "Decisão";
+  if (type === "dependency") return "Dependência";
+  return type;
 }
 
-function typeIcon(type: GovernanceType) {
-  if (type === "decision") return <Target size={18} />;
-  if (type === "dependency") return <Link2 size={18} />;
-  return <CheckCircle2 size={18} />;
+function typeIcon(type: string) {
+  if (type === "action") return <ListChecks size={16} />;
+  if (type === "decision") return <CheckCircle2 size={16} />;
+  return <Link2 size={16} />;
 }
 
-export default function GovernancaOperacional({
-  projects,
-}: {
-  projects: Project[];
-}) {
-  const [items, setItems] = useState<GovernanceItem[]>([]);
+function statusLabel(status: string) {
+  const labels: Record<string, string> = {
+    planned: "Planejado",
+    in_progress: "Em andamento",
+    delayed: "Atrasado",
+    completed: "Concluído",
+    approved: "Aprovado",
+    cancelled: "Cancelado",
+    blocked: "Bloqueado",
+  };
+
+  return labels[status] || status;
+}
+
+function isOpen(status: string) {
+  return !["completed", "approved", "cancelled"].includes(status);
+}
+
+export default function GovernancaOperacional({ projects }: { projects: Project[] }) {
+  const [items, setItems] = useState<RaidItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | GovernanceType>("all");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | GovernanceStatus
-  >("all");
   const [projectFilter, setProjectFilter] = useState("all");
-
-  const [editing, setEditing] = useState<GovernanceItem | null>(null);
+  const [typeFilter, setTypeFilter] = useState<FilterType>("all");
   const [modalOpen, setModalOpen] = useState(false);
-
-  const projectMap = useMemo(
-    () => new Map(projects.map((project) => [project.id, project])),
-    [projects]
-  );
+  const [selectedItem, setSelectedItem] = useState<RaidItem | null>(null);
+  const [form, setForm] = useState<FormState>({
+    status: "in_progress",
+    owner: "",
+    due_date: "",
+  });
 
   async function loadItems() {
     setLoading(true);
@@ -132,25 +128,19 @@ export default function GovernancaOperacional({
     const { data, error: requestError } = await supabase
       .from("project_raid_items")
       .select(
-        "id,project_id,type,title,description,status,priority,owner,due_date,action_plan,decision,dependency,updated_at"
+        "id,project_id,type,title,description,status,priority,owner,due_date,decision,dependency,action_plan"
       )
       .in("type", ["action", "decision", "dependency"])
-      .order("due_date", {
-        ascending: true,
-        nullsFirst: false,
-      })
-      .order("updated_at", {
-        ascending: false,
-      });
+      .order("due_date", { ascending: true, nullsFirst: false });
 
     if (requestError) {
-      console.error(requestError);
-      setError(
-        "Não foi possível carregar a governança operacional."
-      );
+      console.error("Erro ao carregar follow-up:", requestError);
       setItems([]);
+      setError(
+        "Não foi possível carregar o follow-up operacional. Verifique as permissões e a tabela project_raid_items."
+      );
     } else {
-      setItems((data || []) as GovernanceItem[]);
+      setItems((data || []) as RaidItem[]);
     }
 
     setLoading(false);
@@ -161,18 +151,18 @@ export default function GovernancaOperacional({
   }, []);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const normalized = query.trim().toLowerCase();
 
     return items.filter((item) => {
-      const project = projectMap.get(item.project_id);
+      const project = projects.find((p) => p.id === item.project_id);
 
-      const searchable = [
+      const haystack = [
         item.title,
         item.description,
         item.owner,
-        item.action_plan,
         item.decision,
         item.dependency,
+        item.action_plan,
         project?.code,
         project?.name,
       ]
@@ -181,551 +171,491 @@ export default function GovernancaOperacional({
         .toLowerCase();
 
       return (
-        (!q || searchable.includes(q)) &&
-        (typeFilter === "all" || item.type === typeFilter) &&
-        (statusFilter === "all" || item.status === statusFilter) &&
-        (projectFilter === "all" || item.project_id === projectFilter)
+        (!normalized || haystack.includes(normalized)) &&
+        (projectFilter === "all" || item.project_id === projectFilter) &&
+        (typeFilter === "all" || item.type === typeFilter)
       );
     });
-  }, [
-    items,
-    projectMap,
-    query,
-    typeFilter,
-    statusFilter,
-    projectFilter,
-  ]);
+  }, [items, projects, projectFilter, query, typeFilter]);
 
   const metrics = useMemo(() => {
+    const actions = items.filter((item) => item.type === "action");
+    const decisions = items.filter((item) => item.type === "decision");
+    const dependencies = items.filter((item) => item.type === "dependency");
     const open = items.filter((item) => isOpen(item.status));
 
-    const overdue = open.filter((item) => {
+    const overdue = items.filter((item) => {
       const days = daysToDue(item.due_date);
-      return days !== null && days < 0;
+      return isOpen(item.status) && days !== null && days < 0;
     });
 
-    const dueSoon = open.filter((item) => {
-      const days = daysToDue(item.due_date);
-      return days !== null && days >= 0 && days <= 7;
-    });
-
-    const withoutOwner = open.filter(
-      (item) => !item.owner?.trim()
+    const withoutOwner = items.filter(
+      (item) => isOpen(item.status) && !item.owner?.trim()
     );
 
     return {
-      total: items.length,
+      actions: actions.length,
+      decisions: decisions.length,
+      dependencies: dependencies.length,
       open: open.length,
       overdue: overdue.length,
-      dueSoon: dueSoon.length,
       withoutOwner: withoutOwner.length,
-      actions: items.filter((item) => item.type === "action").length,
-      decisions: items.filter((item) => item.type === "decision").length,
-      dependencies: items.filter(
-        (item) => item.type === "dependency"
-      ).length,
     };
   }, [items]);
 
-  function openEdit(item: GovernanceItem) {
-    setEditing(item);
+  const highlights = useMemo(() => {
+    return items
+      .filter((item) => isOpen(item.status))
+      .map((item) => ({
+        item,
+        days: daysToDue(item.due_date),
+      }))
+      .filter(({ days }) => days !== null && days <= 7)
+      .sort((a, b) => Number(a.days) - Number(b.days))
+      .slice(0, 8);
+  }, [items]);
+
+  function openEdit(item: RaidItem) {
+    setSelectedItem(item);
+    setForm({
+      status: item.status || "in_progress",
+      owner: item.owner || "",
+      due_date: item.due_date?.slice(0, 10) || "",
+    });
     setModalOpen(true);
   }
 
   function closeModal() {
     if (saving) return;
     setModalOpen(false);
-    setEditing(null);
+    setSelectedItem(null);
   }
 
-  async function updateItem(
-    field: "status" | "owner" | "due_date",
-    value: string
-  ) {
-    if (!editing || !supabaseConfigured) return;
+  async function save() {
+    if (!selectedItem || saving) return;
 
     setSaving(true);
     setError("");
 
-    const payload = {
-      [field]: value || null,
-    };
-
-    const { error: updateError } = await supabase
+    const { error: requestError } = await supabase
       .from("project_raid_items")
-      .update(payload)
-      .eq("id", editing.id);
+      .update({
+        status: form.status,
+        owner: form.owner.trim() || null,
+        due_date: form.due_date || null,
+      })
+      .eq("id", selectedItem.id);
 
-    if (updateError) {
-      console.error(updateError);
-      setError(
-        updateError.message ||
-          "Não foi possível atualizar o item."
-      );
-    } else {
-      setEditing((current) =>
-        current
-          ? {
-              ...current,
-              [field]: value || null,
-            }
-          : current
-      );
-
-      await loadItems();
+    if (requestError) {
+      console.error("Erro ao atualizar follow-up:", requestError);
+      setError("Não foi possível atualizar o item.");
+      setSaving(false);
+      return;
     }
 
+    await loadItems();
     setSaving(false);
+    closeModal();
   }
 
-  const selectedProject = editing
-    ? projectMap.get(editing.project_id)
-    : undefined;
-
   return (
-    <section className="content governance-operational">
+    <section className="content">
       <div className="module-hero">
+        <div className="module-icon">
+          <ListChecks size={24} />
+        </div>
+
         <div>
           <div className="eyebrow">OPERATIONAL GOVERNANCE</div>
-          <h2>Governança Operacional</h2>
+          <h2>Follow-up</h2>
           <p>
-            Acompanhe ações, decisões e dependências que exigem
-            atuação da gestão dos projetos.
+            Controle executivo de ações, decisões e dependências que exigem
+            acompanhamento contínuo.
           </p>
         </div>
-
-        <button
-          className="refresh"
-          type="button"
-          onClick={loadItems}
-          disabled={loading}
-        >
-          <RefreshCw size={16} />
-          Atualizar
-        </button>
       </div>
 
-      {error && (
-        <div className="module-alert">
-          <AlertTriangle size={17} />
-          <span>{error}</span>
-          <button
-            className="icon-btn"
-            type="button"
-            onClick={() => setError("")}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      {error && <div className="module-error">{error}</div>}
 
-      <div className="governance-operational-kpis">
-        <Metric
-          icon={<Target size={18} />}
-          label="Decisões"
-          value={metrics.decisions}
-        />
-
-        <Metric
-          icon={<CheckCircle2 size={18} />}
-          label="Ações"
-          value={metrics.actions}
-        />
-
-        <Metric
-          icon={<Link2 size={18} />}
-          label="Dependências"
-          value={metrics.dependencies}
-        />
-
-        <Metric
-          icon={<Clock3 size={18} />}
-          label="Em aberto"
-          value={metrics.open}
-          tone="attention"
-        />
-
-        <Metric
-          icon={<AlertTriangle size={18} />}
-          label="Atrasados"
-          value={metrics.overdue}
-          tone={metrics.overdue ? "critical" : "healthy"}
-        />
-      </div>
-
-      <section className="panel governance-operational-panel">
-        <div className="panel-head">
-          <div>
-            <h3>Follow-up executivo</h3>
-            <p>
-              Itens que precisam de decisão, cobrança ou
-              desbloqueio.
-            </p>
-          </div>
-        </div>
-
-        <div className="governance-operational-highlights">
-          <Highlight
-            icon={<AlertTriangle size={18} />}
-            title="Atrasados"
-            value={metrics.overdue}
-            description="Itens abertos com prazo vencido"
-            tone={metrics.overdue ? "critical" : "healthy"}
-          />
-
-          <Highlight
-            icon={<CalendarDays size={18} />}
-            title="Próximos 7 dias"
-            value={metrics.dueSoon}
-            description="Itens com vencimento próximo"
-            tone={metrics.dueSoon ? "attention" : "healthy"}
-          />
-
-          <Highlight
-            icon={<UserRound size={18} />}
-            title="Sem responsável"
-            value={metrics.withoutOwner}
-            description="Itens abertos sem owner definido"
-            tone={metrics.withoutOwner ? "critical" : "healthy"}
+      <div className="module-toolbar">
+        <div className="search-field">
+          <Search size={16} />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar ação, decisão, dependência ou responsável..."
           />
         </div>
-      </section>
 
-      <section className="panel governance-operational-panel">
-        <div className="panel-head">
-          <div>
-            <h3>Itens de governança</h3>
-            <p>
-              Atualize status, responsável e prazo diretamente
-              pelo acompanhamento operacional.
-            </p>
-          </div>
-        </div>
-
-        <div className="governance-operational-toolbar">
-          <label className="search-box">
-            <Search size={16} />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar item, projeto ou responsável"
-            />
-          </label>
-
+        <div className="toolbar-select">
           <select
-            className="select-control"
             value={projectFilter}
-            onChange={(event) =>
-              setProjectFilter(event.target.value)
-            }
+            onChange={(event) => setProjectFilter(event.target.value)}
+            aria-label="Filtrar projeto"
           >
             <option value="all">Todos os projetos</option>
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
-                {project.code}
+                {project.code} · {project.name}
               </option>
             ))}
           </select>
+          <ChevronDown size={15} />
+        </div>
 
+        <div className="toolbar-select">
           <select
-            className="select-control"
             value={typeFilter}
             onChange={(event) =>
-              setTypeFilter(
-                event.target.value as "all" | GovernanceType
-              )
+              setTypeFilter(event.target.value as FilterType)
             }
+            aria-label="Filtrar tipo"
           >
             <option value="all">Todos os tipos</option>
             <option value="action">Ações</option>
             <option value="decision">Decisões</option>
             <option value="dependency">Dependências</option>
           </select>
-
-          <select
-            className="select-control"
-            value={statusFilter}
-            onChange={(event) =>
-              setStatusFilter(
-                event.target.value as
-                  | "all"
-                  | GovernanceStatus
-              )
-            }
-          >
-            <option value="all">Todos os status</option>
-            {Object.entries(statusLabels).map(
-              ([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              )
-            )}
-          </select>
+          <ChevronDown size={15} />
         </div>
 
-        <div className="governance-operational-list">
-          {loading ? (
-            <div className="empty-state">
-              Carregando governança operacional...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="empty-state">
-              Nenhum item encontrado para os filtros selecionados.
-            </div>
-          ) : (
-            filtered.map((item) => {
-              const project = projectMap.get(item.project_id);
-              const days = daysToDue(item.due_date);
-              const overdue =
-                days !== null &&
-                days < 0 &&
-                isOpen(item.status);
+        <button
+          className="primary-btn"
+          type="button"
+          onClick={loadItems}
+          disabled={loading}
+        >
+          Atualizar
+        </button>
+      </div>
 
-              return (
-                <article
-                  className={`governance-operational-item ${
-                    overdue ? "overdue" : ""
-                  }`}
+      <div className="module-grid">
+        <Metric
+          icon={<ListChecks size={19} />}
+          label="Ações"
+          value={metrics.actions}
+        />
+        <Metric
+          icon={<CheckCircle2 size={19} />}
+          label="Decisões"
+          value={metrics.decisions}
+        />
+        <Metric
+          icon={<Link2 size={19} />}
+          label="Dependências"
+          value={metrics.dependencies}
+        />
+        <Metric
+          icon={<ShieldAlert size={19} />}
+          label="Em aberto"
+          value={metrics.open}
+          tone={metrics.open > 0 ? "attention" : "healthy"}
+        />
+        <Metric
+          icon={<AlertTriangle size={19} />}
+          label="Atrasados"
+          value={metrics.overdue}
+          tone={metrics.overdue > 0 ? "critical" : "healthy"}
+        />
+      </div>
+
+      <div className="governance-operational-grid">
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <span className="section-kicker">FOLLOW-UP</span>
+              <h3>Itens prioritários</h3>
+              <p>Compromissos próximos do vencimento ou já atrasados.</p>
+            </div>
+
+            <span className="count">{highlights.length}</span>
+          </div>
+
+          <div className="followup-highlights">
+            {highlights.length === 0 ? (
+              <div className="module-empty">
+                <CheckCircle2 size={25} />
+                <strong>Nenhum item crítico no horizonte imediato</strong>
+                <span>
+                  Não existem ações, decisões ou dependências abertas com prazo
+                  até os próximos 7 dias.
+                </span>
+              </div>
+            ) : (
+              highlights.map(({ item, days }) => (
+                <button
                   key={item.id}
+                  className={`followup-highlight ${
+                    Number(days) < 0 ? "critical" : ""
+                  }`}
+                  type="button"
+                  onClick={() => openEdit(item)}
                 >
-                  <div className={`governance-item-icon ${item.type}`}>
+                  <div className="followup-highlight-icon">
                     {typeIcon(item.type)}
                   </div>
 
-                  <div className="governance-item-main">
-                    <div className="governance-item-top">
-                      <div>
-                        <span className="eyebrow">
-                          {typeLabels[item.type]}
-                        </span>
-                        <h4>{item.title}</h4>
-                      </div>
-
-                      <span
-                        className={`raid-status ${item.status}`}
-                      >
-                        {statusLabels[item.status]}
-                      </span>
-                    </div>
-
-                    <p className="governance-item-description">
-                      {item.description ||
-                        item.action_plan ||
-                        item.decision ||
-                        item.dependency ||
-                        "Sem descrição operacional."}
-                    </p>
-
-                    <div className="governance-item-meta">
-                      <span>
-                        <strong>
-                          {project?.code || "—"}
-                        </strong>
-                        {project?.name
-                          ? ` · ${project.name}`
-                          : ""}
-                      </span>
-
-                      <span>
-                        <UserRound size={14} />
-                        {item.owner || "Sem responsável"}
-                      </span>
-
-                      <span
-                        className={
-                          overdue ? "governance-due overdue" : ""
-                        }
-                      >
-                        <CalendarDays size={14} />
-                        {dateText(item.due_date)}
-                        {overdue ? " · atrasado" : ""}
-                      </span>
-                    </div>
+                  <div className="followup-highlight-main">
+                    <strong>{item.title}</strong>
+                    <span>{projectName(projects, item.project_id)}</span>
                   </div>
 
-                  <button
-                    className="table-action"
-                    type="button"
-                    onClick={() => openEdit(item)}
-                    title="Atualizar acompanhamento"
-                  >
-                    <Edit3 size={16} />
-                  </button>
-                </article>
-              );
-            })
-          )}
+                  <div className="followup-highlight-date">
+                    <small>
+                      {Number(days) < 0
+                        ? "Atrasado"
+                        : Number(days) === 0
+                          ? "Hoje"
+                          : `${days}d`}
+                    </small>
+                    <span>{dateLabel(item.due_date)}</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="panel-head">
+            <div>
+              <span className="section-kicker">CONTROL</span>
+              <h3>Qualidade do follow-up</h3>
+              <p>Pontos que podem comprometer o acompanhamento executivo.</p>
+            </div>
+          </div>
+
+          <div className="followup-control-list">
+            <ControlRow
+              icon={<AlertTriangle size={17} />}
+              label="Itens atrasados"
+              value={metrics.overdue}
+              tone={metrics.overdue > 0 ? "critical" : "healthy"}
+            />
+
+            <ControlRow
+              icon={<Users size={17} />}
+              label="Sem responsável"
+              value={metrics.withoutOwner}
+              tone={metrics.withoutOwner > 0 ? "attention" : "healthy"}
+            />
+
+            <ControlRow
+              icon={<Clock3 size={17} />}
+              label="Itens em aberto"
+              value={metrics.open}
+              tone={metrics.open > 0 ? "attention" : "healthy"}
+            />
+          </div>
+        </section>
+      </div>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <span className="section-kicker">OPERATIONAL COMMITMENTS</span>
+            <h3>Controle de ações, decisões e dependências</h3>
+            <p>
+              {filtered.length}{" "}
+              {filtered.length === 1 ? "item exibido" : "itens exibidos"}
+            </p>
+          </div>
         </div>
 
-        <div className="raid-footnote">
-          <span>
-            <ShieldAlert size={14} />
-            Governança operacional
-          </span>
+        {loading ? (
+          <div className="module-empty">
+            <Clock3 size={25} />
+            <strong>Carregando follow-up</strong>
+            <span>Consultando os dados operacionais.</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="module-empty">
+            <ListChecks size={27} />
+            <strong>Nenhum item encontrado</strong>
+            <span>
+              Ajuste os filtros ou cadastre ações, decisões e dependências no
+              módulo RAID.
+            </span>
+          </div>
+        ) : (
+          <div className="followup-table-wrap">
+            <table className="followup-table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Item</th>
+                  <th>Projeto</th>
+                  <th>Responsável</th>
+                  <th>Prazo</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
 
-          <span>
-            {filtered.length} de {items.length} itens exibidos
-          </span>
-        </div>
+              <tbody>
+                {filtered.map((item) => {
+                  const days = daysToDue(item.due_date);
+                  const overdue =
+                    isOpen(item.status) && days !== null && days < 0;
+
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <span className={`followup-type ${item.type}`}>
+                          {typeIcon(item.type)}
+                          {typeLabel(item.type)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="followup-title-cell">
+                          <strong>{item.title}</strong>
+                          {item.description && (
+                            <span>{item.description}</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        {projectName(projects, item.project_id)}
+                      </td>
+
+                      <td>
+                        <span className={!item.owner ? "muted" : ""}>
+                          {item.owner || "Não definido"}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className={`followup-due ${overdue ? "critical" : ""}`}>
+                          <strong>{dateLabel(item.due_date)}</strong>
+                          {days !== null && isOpen(item.status) && (
+                            <small>
+                              {days < 0
+                                ? `${Math.abs(days)}d atrasado`
+                                : days === 0
+                                  ? "Hoje"
+                                  : `${days}d restantes`}
+                            </small>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`status-badge ${item.status}`}>
+                          {statusLabel(item.status)}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          className="icon-btn"
+                          type="button"
+                          onClick={() => openEdit(item)}
+                          aria-label={`Editar ${item.title}`}
+                        >
+                          <CalendarClock size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
-      {modalOpen && editing && (
-        <div
-          className="modal-backdrop"
-          onClick={closeModal}
-        >
+      {modalOpen && selectedItem && (
+        <div className="modal-backdrop" onMouseDown={closeModal}>
           <div
-            className="raid-modal governance-modal"
-            onClick={(event) => event.stopPropagation()}
+            className="modal"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="modal-head">
               <div>
                 <span className="section-kicker">
-                  FOLLOW-UP
+                  {typeLabel(selectedItem.type)}
                 </span>
-
-                <h2>
-                  {typeLabels[editing.type]}
-                </h2>
-
-                <p>{editing.title}</p>
+                <h3>Atualizar follow-up</h3>
+                <p>{selectedItem.title}</p>
               </div>
 
               <button
                 className="icon-btn"
                 type="button"
                 onClick={closeModal}
+                aria-label="Fechar"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="governance-edit-context">
-              <div>
-                <span>Projeto</span>
-                <strong>
-                  {selectedProject?.code || "—"}
-                </strong>
-              </div>
-
-              <div>
-                <span>Prioridade</span>
-                <strong>{editing.priority}</strong>
-              </div>
-
-              <div>
-                <span>Tipo</span>
-                <strong>
-                  {typeLabels[editing.type]}
-                </strong>
-              </div>
-            </div>
-
-            <div className="governance-edit-description">
-              <span>Contexto</span>
-              <p>
-                {editing.description ||
-                  editing.action_plan ||
-                  editing.decision ||
-                  editing.dependency ||
-                  "Sem descrição cadastrada."}
-              </p>
-            </div>
-
             <div className="form-grid">
               <Field label="Status">
                 <select
-                  value={editing.status}
+                  value={form.status}
                   onChange={(event) =>
-                    updateItem(
-                      "status",
-                      event.target.value
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      status: event.target.value,
+                    }))
                   }
-                  disabled={saving}
                 >
-                  {Object.entries(statusLabels).map(
-                    ([value, label]) => (
-                      <option
-                        key={value}
-                        value={value}
-                      >
-                        {label}
-                      </option>
-                    )
-                  )}
+                  <option value="planned">Planejado</option>
+                  <option value="in_progress">Em andamento</option>
+                  <option value="delayed">Atrasado</option>
+                  <option value="completed">Concluído</option>
+                  <option value="approved">Aprovado</option>
+                  <option value="blocked">Bloqueado</option>
+                  <option value="cancelled">Cancelado</option>
                 </select>
               </Field>
 
               <Field label="Responsável">
                 <input
-                  value={editing.owner || ""}
+                  value={form.owner}
                   onChange={(event) =>
-                    setEditing((current) =>
-                      current
-                        ? {
-                            ...current,
-                            owner: event.target.value,
-                          }
-                        : current
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      owner: event.target.value,
+                    }))
                   }
-                  onBlur={() =>
-                    updateItem(
-                      "owner",
-                      editing.owner || ""
-                    )
-                  }
-                  placeholder="Nome / área"
-                  disabled={saving}
+                  placeholder="Nome do responsável"
                 />
               </Field>
 
               <Field label="Prazo">
                 <input
                   type="date"
-                  value={
-                    editing.due_date?.slice(0, 10) || ""
-                  }
+                  value={form.due_date}
                   onChange={(event) =>
-                    updateItem(
-                      "due_date",
-                      event.target.value
-                    )
+                    setForm((current) => ({
+                      ...current,
+                      due_date: event.target.value,
+                    }))
                   }
-                  disabled={saving}
-                />
-              </Field>
-
-              <Field label="Situação">
-                <input
-                  value={
-                    daysToDue(editing.due_date) === null
-                      ? "Sem prazo definido"
-                      : daysToDue(editing.due_date)! < 0
-                      ? `Atrasado há ${Math.abs(
-                          daysToDue(editing.due_date)!
-                        )} dias`
-                      : daysToDue(editing.due_date) === 0
-                      ? "Vence hoje"
-                      : `Vence em ${daysToDue(
-                          editing.due_date
-                        )} dias`
-                  }
-                  readOnly
                 />
               </Field>
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-actions">
               <button
                 className="secondary-btn"
                 type="button"
                 onClick={closeModal}
                 disabled={saving}
               >
-                Fechar
+                Cancelar
+              </button>
+
+              <button
+                className="primary-btn"
+                type="button"
+                onClick={save}
+                disabled={saving}
+              >
+                {saving ? "Salvando..." : "Salvar alterações"}
               </button>
             </div>
           </div>
@@ -741,47 +671,37 @@ function Metric({
   value,
   tone = "",
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: number;
   tone?: string;
 }) {
   return (
-    <div className={`kpi ${tone}`}>
-      <div className="kpi-icon">{icon}</div>
-      <div>
-        <span>{label}</span>
-        <strong>{value}</strong>
-      </div>
+    <div className={`module-card ${tone}`}>
+      <div className="module-card-icon">{icon}</div>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
 
-function Highlight({
+function ControlRow({
   icon,
-  title,
+  label,
   value,
-  description,
   tone,
 }: {
-  icon: React.ReactNode;
-  title: string;
+  icon: ReactNode;
+  label: string;
   value: number;
-  description: string;
   tone: string;
 }) {
   return (
-    <article className={`governance-highlight ${tone}`}>
-      <div className="governance-highlight-icon">
-        {icon}
-      </div>
-
-      <div>
-        <span>{title}</span>
-        <strong>{value}</strong>
-        <small>{description}</small>
-      </div>
-    </article>
+    <div className={`control-row ${tone}`}>
+      <div className="control-row-icon">{icon}</div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
 }
 
@@ -790,10 +710,10 @@ function Field({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <label className="form-field">
+    <label className="field">
       <span>{label}</span>
       {children}
     </label>
