@@ -1,563 +1,784 @@
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
-  ArrowUpRight,
   CalendarDays,
   CheckCircle2,
   Clock3,
-  DollarSign,
-  RefreshCw,
   ShieldAlert,
   Target,
+  TrendingUp,
   Users,
   XCircle,
 } from "lucide-react";
+import { supabase, supabaseConfigured } from "../lib/supabase";
 
-const projects = [
-  {
-    name: "SAP S/4HANA",
-    phase: "Implementação",
-    progress: 72,
-    deadline: "15/10/2026",
-    budget: "R$ 1,8M",
-    owner: "Carlos Silva",
-    status: "healthy",
-  },
-  {
-    name: "Integração FI",
-    phase: "UAT",
-    progress: 54,
-    deadline: "28/09/2026",
-    budget: "R$ 820K",
-    owner: "Mariana Costa",
-    status: "attention",
-  },
-  {
-    name: "Renda Fixa",
-    phase: "Go-live",
-    progress: 31,
-    deadline: "12/09/2026",
-    budget: "R$ 640K",
-    owner: "Felipe Santos",
-    status: "critical",
-  },
-  {
-    name: "SAP Ariba",
-    phase: "Desenvolvimento",
-    progress: 46,
-    deadline: "05/11/2026",
-    budget: "R$ 520K",
-    owner: "Ana Oliveira",
-    status: "healthy",
-  },
-];
-
-const statusConfig = {
-  healthy: {
-    label: "Saudável",
-    className: "status-healthy",
-    icon: CheckCircle2,
-  },
-  attention: {
-    label: "Atenção",
-    className: "status-attention",
-    icon: AlertTriangle,
-  },
-  critical: {
-    label: "Crítico",
-    className: "status-critical",
-    icon: XCircle,
-  },
+type Project = {
+  id: string;
+  code: string;
+  name: string;
+  status?: string;
+  current_phase?: string;
+  progress?: number;
+  spi?: number;
+  health_score?: number;
+  health_status?: string;
+  critical_risks?: number;
+  open_issues?: number;
+  overdue_actions?: number;
+  days_to_go_live?: number;
 };
 
-const milestones = [
-  {
-    date: "12/09",
-    title: "Go-live",
-    project: "Renda Fixa",
-    owner: "Felipe Santos",
-    status: "critical",
-  },
-  {
-    date: "18/09",
-    title: "UAT",
-    project: "Integração FI",
-    owner: "Mariana Costa",
-    status: "attention",
-  },
-  {
-    date: "25/09",
-    title: "Steering Committee",
-    project: "SAP S/4HANA",
-    owner: "Carlos Silva",
-    status: "healthy",
-  },
-  {
-    date: "05/10",
-    title: "Cutover",
-    project: "SAP Ariba",
-    owner: "Ana Oliveira",
-    status: "healthy",
-  },
-];
+type HealthStatus = "healthy" | "attention" | "critical";
 
-const alerts = [
-  {
-    type: "critical",
-    title: "Prazo em risco",
-    description: "Renda Fixa possui apenas 5 dias até o Go-live.",
-  },
-  {
-    type: "warning",
-    title: "Orçamento acima do previsto",
-    description: "Integração FI está 8% acima do baseline.",
-  },
-  {
-    type: "warning",
-    title: "Recurso sobrecarregado",
-    description: "2 recursos estão acima de 100% de capacidade.",
-  },
-  {
-    type: "critical",
-    title: "RAID crítico",
-    description: "3 riscos críticos aguardam plano de mitigação.",
-  },
-];
+function normalizeHealth(status?: string): HealthStatus {
+  const value = (status || "").toLowerCase().trim();
 
-export default function ExecutiveDashboard() {
-  const budgetTotal = 4200000;
-  const budgetConsumed = 2700000;
-  const budgetPercentage = Math.round(
-    (budgetConsumed / budgetTotal) * 100
-  );
+  if (
+    value.includes("critical") ||
+    value.includes("critical") ||
+    value.includes("red") ||
+    value.includes("crítico") ||
+    value.includes("critico")
+  ) {
+    return "critical";
+  }
+
+  if (
+    value.includes("attention") ||
+    value.includes("warning") ||
+    value.includes("yellow") ||
+    value.includes("atenção") ||
+    value.includes("atencao")
+  ) {
+    return "attention";
+  }
+
+  return "healthy";
+}
+
+function healthText(status: HealthStatus) {
+  if (status === "critical") return "Crítico";
+  if (status === "attention") return "Atenção";
+  return "Healthy";
+}
+
+function healthDescription(status: HealthStatus) {
+  if (status === "critical") {
+    return "Requer atuação executiva";
+  }
+
+  if (status === "attention") {
+    return "Requer acompanhamento";
+  }
+
+  return "Dentro do esperado";
+}
+
+function formatNumber(value: unknown) {
+  return Math.round(Number(value || 0));
+}
+
+function ExecutiveDashboard() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError("");
+
+    if (!supabaseConfigured) {
+      setProjects([]);
+      setLoading(false);
+      return;
+    }
+
+    const { data, error: queryError } = await supabase
+      .from("v_project_dashboard")
+      .select("*")
+      .order("health_score", { ascending: true });
+
+    if (queryError) {
+      console.error("Erro ao carregar Executive Dashboard:", queryError);
+      setError("Não foi possível carregar os dados do portfolio.");
+      setProjects([]);
+    } else {
+      setProjects((data || []) as Project[]);
+    }
+
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const metrics = useMemo(() => {
+    const healthy = projects.filter(
+      (project) => normalizeHealth(project.health_status) === "healthy"
+    ).length;
+
+    const attention = projects.filter(
+      (project) => normalizeHealth(project.health_status) === "attention"
+    ).length;
+
+    const critical = projects.filter(
+      (project) => normalizeHealth(project.health_status) === "critical"
+    ).length;
+
+    const averageHealth = projects.length
+      ? projects.reduce(
+          (total, project) => total + Number(project.health_score || 0),
+          0
+        ) / projects.length
+      : 0;
+
+    const averageProgress = projects.length
+      ? projects.reduce(
+          (total, project) => total + Number(project.progress || 0),
+          0
+        ) / projects.length
+      : 0;
+
+    const averageSpi = projects.length
+      ? projects.reduce(
+          (total, project) => total + Number(project.spi || 0),
+          0
+        ) / projects.length
+      : 0;
+
+    const criticalRisks = projects.reduce(
+      (total, project) => total + Number(project.critical_risks || 0),
+      0
+    );
+
+    const openIssues = projects.reduce(
+      (total, project) => total + Number(project.open_issues || 0),
+      0
+    );
+
+    const overdueActions = projects.reduce(
+      (total, project) => total + Number(project.overdue_actions || 0),
+      0
+    );
+
+    const raidTotal =
+      criticalRisks + openIssues + overdueActions;
+
+    return {
+      healthy,
+      attention,
+      critical,
+      averageHealth,
+      averageProgress,
+      averageSpi,
+      criticalRisks,
+      openIssues,
+      overdueActions,
+      raidTotal,
+    };
+  }, [projects]);
+
+  const attentionProjects = useMemo(() => {
+    return [...projects]
+      .filter(
+        (project) =>
+          normalizeHealth(project.health_status) !== "healthy"
+      )
+      .sort(
+        (a, b) =>
+          Number(a.health_score || 0) -
+          Number(b.health_score || 0)
+      )
+      .slice(0, 6);
+  }, [projects]);
+
+  const nextGoLives = useMemo(() => {
+    return [...projects]
+      .filter((project) => project.days_to_go_live != null)
+      .sort(
+        (a, b) =>
+          Number(a.days_to_go_live) -
+          Number(b.days_to_go_live)
+      )
+      .slice(0, 5);
+  }, [projects]);
+
+  if (loading) {
+    return (
+      <section className="executive-dashboard">
+        <div className="executive-loading">
+          <Activity size={22} />
+          <span>Carregando Executive Dashboard...</span>
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="executive-dashboard">
+        <div className="executive-error">
+          <AlertTriangle size={22} />
+          <div>
+            <strong>Erro no dashboard</strong>
+            <span>{error}</span>
+          </div>
+          <button type="button" onClick={loadDashboard}>
+            Tentar novamente
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div className="executive-dashboard">
-      <header className="executive-header">
+    <section className="executive-dashboard">
+      <div className="executive-header">
         <div>
-          <div className="executive-breadcrumb">
-            <span>Governança</span>
-            <ArrowUpRight size={14} />
-            <span>Portfólio SAP</span>
-          </div>
-
-          <h1>Visão Geral</h1>
-
+          <span className="executive-kicker">
+            EXECUTIVE PORTFOLIO
+          </span>
+          <h2>Visão executiva SAP</h2>
           <p>
-            Governança executiva e acompanhamento estratégico do portfólio SAP
+            Acompanhe a saúde, execução e principais pontos de
+            atenção do portfolio.
           </p>
         </div>
 
-        <div className="executive-header-actions">
-          <button className="executive-period">
-            <CalendarDays size={17} />
-            <span>Setembro 2026</span>
-          </button>
-
-          <button className="executive-action">
-            <RefreshCw size={17} />
-            Atualizar
-          </button>
+        <div className="executive-header-status">
+          <span className="status-dot" />
+          <span>
+            {supabaseConfigured
+              ? "Dados atualizados do Supabase"
+              : "Modo demonstração"}
+          </span>
         </div>
-      </header>
+      </div>
 
-      <section className="executive-kpis">
-        <div className="executive-kpi">
-          <div className="kpi-icon">
-            <Target size={21} />
-          </div>
+      <div className="executive-kpi-grid">
+        <ExecutiveKpi
+          icon={<Target size={19} />}
+          label="Projetos"
+          value={projects.length}
+          description="No portfolio"
+        />
 
-          <div className="kpi-content">
-            <span>Projetos ativos</span>
-            <strong>12</strong>
-            <small className="kpi-positive">
-              +2 este mês
-            </small>
-          </div>
-        </div>
+        <ExecutiveKpi
+          icon={<CheckCircle2 size={19} />}
+          label="Healthy"
+          value={metrics.healthy}
+          description="Dentro do esperado"
+          tone="healthy"
+        />
 
-        <div className="executive-kpi">
-          <div className="kpi-icon kpi-warning">
-            <ShieldAlert size={21} />
-          </div>
+        <ExecutiveKpi
+          icon={<AlertTriangle size={19} />}
+          label="Atenção"
+          value={metrics.attention}
+          description="Requer acompanhamento"
+          tone="attention"
+        />
 
-          <div className="kpi-content">
-            <span>Projetos em risco</span>
-            <strong>3</strong>
-            <small className="kpi-negative">
-              25% do portfólio
-            </small>
-          </div>
-        </div>
+        <ExecutiveKpi
+          icon={<XCircle size={19} />}
+          label="Crítico"
+          value={metrics.critical}
+          description="Requer ação executiva"
+          tone="critical"
+        />
+      </div>
 
-        <div className="executive-kpi">
-          <div className="kpi-icon kpi-danger">
-            <Clock3 size={21} />
-          </div>
-
-          <div className="kpi-content">
-            <span>Projetos atrasados</span>
-            <strong>2</strong>
-            <small className="kpi-negative">
-              Requer atenção
-            </small>
-          </div>
-        </div>
-
-        <div className="executive-kpi">
-          <div className="kpi-icon">
-            <DollarSign size={21} />
-          </div>
-
-          <div className="kpi-content">
-            <span>Budget total</span>
-            <strong>R$ 4,2M</strong>
-            <small>Portfólio atual</small>
-          </div>
-        </div>
-
-        <div className="executive-kpi">
-          <div className="kpi-icon">
-            <Activity size={21} />
-          </div>
-
-          <div className="kpi-content">
-            <span>Budget consumido</span>
-            <strong>R$ 2,7M</strong>
-            <small>{budgetPercentage}% executado</small>
-          </div>
-        </div>
-
-        <div className="executive-kpi">
-          <div className="kpi-icon">
-            <Users size={21} />
-          </div>
-
-          <div className="kpi-content">
-            <span>Capacidade recursos</span>
-            <strong>87%</strong>
-            <small className="kpi-warning-text">
-              2 sobrecarregados
-            </small>
-          </div>
-        </div>
-      </section>
-
-      <section className="executive-grid executive-grid-top">
-        <div className="executive-card health-card">
-          <div className="executive-card-header">
+      <div className="executive-main-grid">
+        <section className="executive-panel executive-health-panel">
+          <div className="executive-panel-header">
             <div>
-              <span className="card-eyebrow">PORTFÓLIO</span>
-              <h2>Saúde do portfólio</h2>
+              <span className="panel-kicker">PORTFOLIO HEALTH</span>
+              <h3>Saúde do portfolio</h3>
             </div>
 
-            <Activity size={20} />
+            <Activity size={19} />
           </div>
 
-          <div className="health-content">
-            <div className="health-ring">
-              <div className="health-ring-inner">
-                <strong>75%</strong>
-                <span>Saudável</span>
-              </div>
+          <div className="health-overview">
+            <div className="health-score-large">
+              <strong>
+                {Math.round(metrics.averageHealth)}
+              </strong>
+              <span>Health Score médio</span>
             </div>
 
-            <div className="health-legend">
-              <div>
-                <span className="legend-dot legend-green" />
-                <span>Saudável</span>
-                <strong>75%</strong>
-              </div>
+            <div className="health-distribution">
+              <HealthDistribution
+                label="Healthy"
+                value={metrics.healthy}
+                total={projects.length}
+                tone="healthy"
+              />
 
-              <div>
-                <span className="legend-dot legend-yellow" />
-                <span>Atenção</span>
-                <strong>17%</strong>
-              </div>
+              <HealthDistribution
+                label="Atenção"
+                value={metrics.attention}
+                total={projects.length}
+                tone="attention"
+              />
 
-              <div>
-                <span className="legend-dot legend-red" />
-                <span>Crítico</span>
-                <strong>8%</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="executive-card financial-card">
-          <div className="executive-card-header">
-            <div>
-              <span className="card-eyebrow">FINANCEIRO</span>
-              <h2>Execução financeira</h2>
-            </div>
-
-            <DollarSign size={20} />
-          </div>
-
-          <div className="financial-values">
-            <div>
-              <span>Budget</span>
-              <strong>R$ 4,2M</strong>
-            </div>
-
-            <div>
-              <span>Executado</span>
-              <strong>R$ 2,7M</strong>
-            </div>
-
-            <div>
-              <span>Saldo</span>
-              <strong>R$ 1,5M</strong>
-            </div>
-          </div>
-
-          <div className="financial-progress">
-            <div className="financial-progress-header">
-              <span>Consumo do budget</span>
-              <strong>{budgetPercentage}%</strong>
-            </div>
-
-            <div className="progress-track">
-              <div
-                className="progress-fill"
-                style={{ width: `${budgetPercentage}%` }}
+              <HealthDistribution
+                label="Crítico"
+                value={metrics.critical}
+                total={projects.length}
+                tone="critical"
               />
             </div>
           </div>
+        </section>
+
+        <section className="executive-panel">
+          <div className="executive-panel-header">
+            <div>
+              <span className="panel-kicker">DELIVERY</span>
+              <h3>Performance de entrega</h3>
+            </div>
+
+            <TrendingUp size={19} />
+          </div>
+
+          <div className="delivery-metrics">
+            <MetricBlock
+              label="Progresso médio"
+              value={`${Math.round(metrics.averageProgress)}%`}
+            />
+
+            <MetricBlock
+              label="SPI médio"
+              value={
+                projects.length
+                  ? metrics.averageSpi.toFixed(2)
+                  : "—"
+              }
+            />
+
+            <MetricBlock
+              label="Projetos"
+              value={projects.length}
+            />
+          </div>
+
+          <div className="delivery-progress">
+            <div className="delivery-progress-head">
+              <span>Execução média</span>
+              <strong>
+                {Math.round(metrics.averageProgress)}%
+              </strong>
+            </div>
+
+            <div className="delivery-track">
+              <div
+                className="delivery-value"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(0, metrics.averageProgress)
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="executive-panel executive-raid-panel">
+        <div className="executive-panel-header">
+          <div>
+            <span className="panel-kicker">RAID</span>
+            <h3>Principais pontos de atenção</h3>
+          </div>
+
+          <span className="raid-total">
+            {metrics.raidTotal} itens
+          </span>
+        </div>
+
+        <div className="raid-executive-grid">
+          <RaidExecutiveCard
+            icon={<ShieldAlert size={20} />}
+            value={metrics.criticalRisks}
+            label="Riscos críticos"
+            description="Riscos que exigem atenção"
+            tone="critical"
+          />
+
+          <RaidExecutiveCard
+            icon={<AlertTriangle size={20} />}
+            value={metrics.openIssues}
+            label="Issues abertas"
+            description="Problemas em tratamento"
+            tone="attention"
+          />
+
+          <RaidExecutiveCard
+            icon={<Clock3 size={20} />}
+            value={metrics.overdueActions}
+            label="Ações atrasadas"
+            description="Ações fora do prazo"
+            tone="attention"
+          />
+
+          <RaidExecutiveCard
+            icon={<Target size={20} />}
+            value="—"
+            label="Decisões"
+            description="Decisões executivas pendentes"
+          />
         </div>
       </section>
 
-      <section className="executive-card portfolio-card">
-        <div className="executive-card-header">
-          <div>
-            <span className="card-eyebrow">PORTFÓLIO</span>
-            <h2>Projetos em andamento</h2>
+      <div className="executive-main-grid">
+        <section className="executive-panel">
+          <div className="executive-panel-header">
+            <div>
+              <span className="panel-kicker">EXECUTIVE ATTENTION</span>
+              <h3>Projetos que exigem atenção</h3>
+            </div>
+
+            <ShieldAlert size={19} />
           </div>
 
-          <button className="card-link">
-            Ver todos
-            <ArrowUpRight size={15} />
-          </button>
-        </div>
+          {attentionProjects.length === 0 ? (
+            <div className="executive-empty">
+              <CheckCircle2 size={22} />
+              <strong>Nenhum projeto crítico</strong>
+              <span>
+                O portfolio não possui projetos classificados
+                como Atenção ou Crítico.
+              </span>
+            </div>
+          ) : (
+            <div className="attention-list">
+              {attentionProjects.map((project) => {
+                const status = normalizeHealth(
+                  project.health_status
+                );
 
-        <div className="portfolio-table-wrapper">
-          <table className="portfolio-table">
-            <thead>
-              <tr>
-                <th>Projeto</th>
-                <th>Fase</th>
-                <th>Execução</th>
-                <th>Prazo</th>
-                <th>Orçamento</th>
-                <th>Responsável</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {projects.map((project) => {
-                const config =
-                  statusConfig[
-                    project.status as keyof typeof statusConfig
-                  ];
-
-                const StatusIcon = config.icon;
+                const health = Math.round(
+                  Number(project.health_score || 0)
+                );
 
                 return (
-                  <tr key={project.name}>
-                    <td>
-                      <div className="project-name">
-                        <span className="project-avatar">
-                          {project.name.charAt(0)}
-                        </span>
-                        <strong>{project.name}</strong>
+                  <div
+                    className={`attention-project ${status}`}
+                    key={project.id}
+                  >
+                    <div className="attention-project-main">
+                      <div className="attention-project-code">
+                        {project.code}
                       </div>
-                    </td>
 
-                    <td>{project.phase}</td>
+                      <strong>{project.name}</strong>
 
-                    <td>
-                      <div className="project-progress">
-                        <div className="project-progress-top">
-                          <span>{project.progress}%</span>
-                        </div>
-
-                        <div className="progress-track">
-                          <div
-                            className="progress-fill"
-                            style={{
-                              width: `${project.progress}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-
-                    <td>{project.deadline}</td>
-
-                    <td>{project.budget}</td>
-
-                    <td>{project.owner}</td>
-
-                    <td>
-                      <span
-                        className={`status-badge ${config.className}`}
-                      >
-                        <StatusIcon size={14} />
-                        {config.label}
+                      <span>
+                        {project.current_phase ||
+                          "Fase não informada"}
                       </span>
-                    </td>
-                  </tr>
+                    </div>
+
+                    <div className="attention-project-health">
+                      <strong>{health}</strong>
+                      <span>{healthText(status)}</span>
+                    </div>
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            </div>
+          )}
+        </section>
 
-      <section className="executive-grid executive-grid-bottom">
-        <div className="executive-card raid-card">
-          <div className="executive-card-header">
+        <section className="executive-panel">
+          <div className="executive-panel-header">
             <div>
-              <span className="card-eyebrow">GOVERNANÇA</span>
-              <h2>RAID executivo</h2>
+              <span className="panel-kicker">MILESTONES</span>
+              <h3>Próximos Go-Lives</h3>
             </div>
 
-            <button className="card-link">
-              Ver RAID
-              <ArrowUpRight size={15} />
-            </button>
+            <CalendarDays size={19} />
           </div>
 
-          <div className="raid-list">
-            <div className="raid-item">
-              <div className="raid-icon raid-danger">
-                <ShieldAlert size={18} />
-              </div>
-
-              <div>
-                <strong>3 riscos críticos</strong>
-                <span>Aguardando mitigação</span>
-              </div>
-
-              <b>3</b>
+          {nextGoLives.length === 0 ? (
+            <div className="executive-empty">
+              <CalendarDays size={22} />
+              <strong>Sem datas disponíveis</strong>
+              <span>
+                Cadastre as informações de Go-Live no
+                portfolio.
+              </span>
             </div>
+          ) : (
+            <div className="golive-list">
+              {nextGoLives.map((project) => {
+                const days = Number(
+                  project.days_to_go_live || 0
+                );
 
-            <div className="raid-item">
-              <div className="raid-icon raid-warning">
-                <AlertTriangle size={18} />
-              </div>
+                const urgency =
+                  days <= 30
+                    ? "critical"
+                    : days <= 60
+                      ? "attention"
+                      : "healthy";
 
-              <div>
-                <strong>5 issues abertas</strong>
-                <span>2 com vencimento próximo</span>
-              </div>
+                return (
+                  <div className="golive-item" key={project.id}>
+                    <div className="golive-icon">
+                      <CalendarDays size={17} />
+                    </div>
 
-              <b>5</b>
+                    <div className="golive-main">
+                      <strong>{project.code}</strong>
+                      <span>{project.name}</span>
+                    </div>
+
+                    <div className={`golive-days ${urgency}`}>
+                      <strong>{days}</strong>
+                      <span>dias</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          )}
+        </section>
+      </div>
 
-            <div className="raid-item">
-              <div className="raid-icon raid-info">
-                <Target size={18} />
-              </div>
-
-              <div>
-                <strong>2 decisões pendentes</strong>
-                <span>Steering Committee</span>
-              </div>
-
-              <b>2</b>
-            </div>
-
-            <div className="raid-item">
-              <div className="raid-icon raid-warning">
-                <ArrowUpRight size={18} />
-              </div>
-
-              <div>
-                <strong>4 dependências</strong>
-                <span>Impacto em projetos</span>
-              </div>
-
-              <b>4</b>
-            </div>
+      <section className="executive-panel">
+        <div className="executive-panel-header">
+          <div>
+            <span className="panel-kicker">
+              PORTFOLIO OVERVIEW
+            </span>
+            <h3>Projetos</h3>
           </div>
+
+          <span className="project-count">
+            {projects.length} projetos
+          </span>
         </div>
 
-        <div className="executive-card milestones-card">
-          <div className="executive-card-header">
-            <div>
-              <span className="card-eyebrow">PLANEJAMENTO</span>
-              <h2>Próximos marcos</h2>
+        {projects.length === 0 ? (
+          <div className="executive-empty">
+            <Users size={22} />
+            <strong>Nenhum projeto encontrado</strong>
+            <span>
+              Não existem registros disponíveis em
+              v_project_dashboard.
+            </span>
+          </div>
+        ) : (
+          <div className="executive-project-table">
+            <div className="executive-table-head">
+              <span>Projeto</span>
+              <span>Health</span>
+              <span>Progresso</span>
+              <span>SPI</span>
+              <span>Go-Live</span>
+              <span>RAID</span>
             </div>
 
-            <CalendarDays size={20} />
-          </div>
+            {projects.map((project) => {
+              const status = normalizeHealth(
+                project.health_status
+              );
 
-          <div className="milestone-list">
-            {milestones.map((milestone) => {
-              const config =
-                statusConfig[
-                  milestone.status as keyof typeof statusConfig
-                ];
+              const progress = Math.min(
+                100,
+                Math.max(0, Number(project.progress || 0))
+              );
+
+              const raid =
+                Number(project.critical_risks || 0) +
+                Number(project.open_issues || 0) +
+                Number(project.overdue_actions || 0);
 
               return (
-                <div className="milestone-item" key={`${milestone.date}-${milestone.title}`}>
-                  <div className="milestone-date">
-                    <strong>{milestone.date}</strong>
-                    <span>SET</span>
+                <div
+                  className="executive-table-row"
+                  key={project.id}
+                >
+                  <div className="project-info">
+                    <strong>{project.code}</strong>
+                    <span>{project.name}</span>
                   </div>
 
-                  <div className="milestone-info">
-                    <strong>{milestone.title}</strong>
-                    <span>{milestone.project}</span>
-                    <small>{milestone.owner}</small>
+                  <div className={`project-health ${status}`}>
+                    <span className="health-indicator" />
+                    <strong>
+                      {formatNumber(project.health_score)}
+                    </strong>
+                    <small>
+                      {healthDescription(status)}
+                    </small>
                   </div>
 
-                  <span
-                    className={`milestone-status ${config.className}`}
-                  />
+                  <div className="project-progress">
+                    <div>
+                      <span>{Math.round(progress)}%</span>
+                    </div>
+
+                    <div className="mini-progress-track">
+                      <div
+                        className="mini-progress-value"
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="project-value">
+                    {project.spi == null
+                      ? "—"
+                      : Number(project.spi).toFixed(2)}
+                  </div>
+
+                  <div className="project-value">
+                    {project.days_to_go_live == null
+                      ? "—"
+                      : `${Math.round(
+                          Number(project.days_to_go_live)
+                        )}d`}
+                  </div>
+
+                  <div className="project-raid">
+                    {raid}
+                  </div>
                 </div>
               );
             })}
           </div>
-        </div>
+        )}
       </section>
 
-      <section className="executive-card alerts-card">
-        <div className="executive-card-header">
-          <div>
-            <span className="card-eyebrow">ATENÇÃO EXECUTIVA</span>
-            <h2>Alertas</h2>
-          </div>
+      <div className="executive-footer">
+        <span>
+          <Activity size={14} />
+          SAP PMO Control Tower
+        </span>
 
-          <span className="alert-count">{alerts.length}</span>
-        </div>
+        <span>
+          Atualizado em{" "}
+          {new Date().toLocaleDateString("pt-BR")}
+        </span>
+      </div>
+    </section>
+  );
+}
 
-        <div className="alerts-list">
-          {alerts.map((alert) => (
-            <div
-              className={`alert-item alert-${alert.type}`}
-              key={alert.title}
-            >
-              <div className="alert-item-icon">
-                {alert.type === "critical" ? (
-                  <ShieldAlert size={19} />
-                ) : (
-                  <AlertTriangle size={19} />
-                )}
-              </div>
+function ExecutiveKpi({
+  icon,
+  label,
+  value,
+  description,
+  tone = "",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | number;
+  description: string;
+  tone?: string;
+}) {
+  return (
+    <div className={`executive-kpi ${tone}`}>
+      <div className="executive-kpi-icon">{icon}</div>
 
-              <div>
-                <strong>{alert.title}</strong>
-                <span>{alert.description}</span>
-              </div>
-
-              <ArrowUpRight size={17} />
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="executive-kpi-content">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        <small>{description}</small>
+      </div>
     </div>
   );
 }
+
+function HealthDistribution({
+  label,
+  value,
+  total,
+  tone,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  tone: string;
+}) {
+  const percentage = total
+    ? Math.round((value / total) * 100)
+    : 0;
+
+  return (
+    <div className={`health-distribution-item ${tone}`}>
+      <div className="health-distribution-head">
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+
+      <div className="health-distribution-track">
+        <div
+          className="health-distribution-value"
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+      </div>
+
+      <small>{percentage}% do portfolio</small>
+    </div>
+  );
+}
+
+function MetricBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
+  return (
+    <div className="delivery-metric">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function RaidExecutiveCard({
+  icon,
+  value,
+  label,
+  description,
+  tone = "",
+}: {
+  icon: React.ReactNode;
+  value: string | number;
+  label: string;
+  description: string;
+  tone?: string;
+}) {
+  return (
+    <div className={`raid-executive-card ${tone}`}>
+      <div className="raid-executive-icon">
+        {icon}
+      </div>
+
+      <div className="raid-executive-content">
+        <div className="raid-executive-top">
+          <strong>{value}</strong>
+          <span>{label}</span>
+        </div>
+
+        <p>{description}</p>
+      </div>
+    </div>
+  );
+}
+
+export default ExecutiveDashboard;
