@@ -30,7 +30,7 @@ import {
 
 import { supabase, supabaseConfigured } from "./lib/supabase";
 import Cronograma from "./Cronograma";
-import RAID from "./RAID";
+import Financeiro from "./Financeiro";
 
 type Project = {
   id: string;
@@ -275,23 +275,23 @@ function App() {
         )}
 
         {module === "raid" && (
-          <RAID projects={projects.map((project) => ({ id: project.id, code: project.code, name: project.name }))} />
+          <ModulePage
+            title="RAID"
+            kicker="GOVERNANCE CONTROL"
+            description="Riscos, Issues, Ações, Decisões e Dependências por projeto."
+            icon={<ShieldAlert size={22} />}
+            cards={[
+              ["Riscos críticos", sum(projects, "critical_risks")],
+              ["Issues abertas", sum(projects, "open_issues")],
+              ["Ações atrasadas", sum(projects, "overdue_actions")],
+              ["Projetos críticos", critical],
+            ]}
+            note="A estrutura RAID já está criada no Supabase. O próximo passo é conectar os registros individuais ao CRUD."
+          />
         )}
 
         {module === "financial" && (
-          <ModulePage
-            title="Financeiro"
-            kicker="FINANCIAL GOVERNANCE"
-            description="Budget, realizado, forecast e desvios do portfólio SAP."
-            icon={<CircleDollarSign size={22} />}
-            cards={[
-              ["Projetos", projects.length],
-              ["Budget", "—"],
-              ["Forecast", "—"],
-              ["Desvio", "—"],
-            ]}
-            note="A estrutura financeira já está criada no Supabase. Os valores passam a aparecer após o cadastro dos dados financeiros."
-          />
+          <Financeiro projects={projects} />
         )}
 
         {module === "resources" && (
