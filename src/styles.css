@@ -3748,3 +3748,645 @@ td {
     max-width: 100%;
   }
 }
+/* =========================================================
+   FINAL UI ALIGNMENT — PORTFOLIO / RAID / FOLLOW-UP /
+   LIÇÕES APRENDIDAS / STATUS EXECUTIVO
+   ========================================================= */
+
+.portfolio,
+.portfolio-page,
+.executive-dashboard,
+.executive-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.portfolio-header,
+.executive-header,
+.dashboard-header {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.portfolio-header > *,
+.executive-header > *,
+.dashboard-header > * {
+  min-width: 0;
+}
+
+.portfolio-grid,
+.project-grid,
+.executive-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.project-card,
+.portfolio-card,
+.executive-project-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.project-card *,
+.portfolio-card *,
+.executive-project-card * {
+  min-width: 0;
+}
+
+.project-card h3,
+.portfolio-card h3,
+.executive-project-card h3 {
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.project-card p,
+.portfolio-card p,
+.executive-project-card p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.portfolio-kpis,
+.executive-kpis {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.executive-health {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.executive-health > * {
+  min-width: 0;
+}
+
+.executive-reading {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.executive-reading p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- RAID ---------- */
+
+.raid-page,
+.raid-container {
+  width: 100%;
+  min-width: 0;
+}
+
+.raid-summary,
+.raid-kpis {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.raid-summary > *,
+.raid-kpis > * {
+  min-width: 0;
+}
+
+.raid-list {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.raid-item,
+.raid-row,
+.raid-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.raid-item-header,
+.raid-row-header,
+.raid-card-head {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.raid-item-title,
+.raid-row-title,
+.raid-title {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.raid-item-description,
+.raid-row-description,
+.raid-description {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.5;
+}
+
+.raid-meta,
+.raid-footer {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.raid-meta > *,
+.raid-footer > * {
+  min-width: 0;
+}
+
+.raid-filters {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.raid-filters > * {
+  min-width: 0;
+}
+
+/* ---------- FOLLOW-UP / GOVERNANÇA OPERACIONAL ---------- */
+
+.follow-up,
+.followup,
+.governance-operational,
+.operational-governance {
+  width: 100%;
+  min-width: 0;
+}
+
+.follow-up-summary,
+.followup-summary,
+.operational-kpis {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.follow-up-summary > *,
+.followup-summary > *,
+.operational-kpis > * {
+  min-width: 0;
+}
+
+.follow-up-grid,
+.followup-grid,
+.operational-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.follow-up-card,
+.followup-card,
+.operational-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.follow-up-card h3,
+.followup-card h3,
+.operational-card h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.follow-up-card p,
+.followup-card p,
+.operational-card p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.follow-up-table,
+.followup-table,
+.operational-table {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.follow-up-table table,
+.followup-table table,
+.operational-table table {
+  width: 100%;
+  min-width: 720px;
+}
+
+/* ---------- LIÇÕES APRENDIDAS ---------- */
+
+.lessons-page {
+  width: 100%;
+  min-width: 0;
+}
+
+.lessons-page .module-hero {
+  width: 100%;
+}
+
+.lessons-summary {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.lessons-summary > * {
+  min-width: 0;
+}
+
+.lessons-list {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lesson-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lesson-card-head {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lesson-card-head > * {
+  min-width: 0;
+}
+
+.lesson-project,
+.lesson-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lesson-meta {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.lesson-content {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.lesson-section {
+  width: 100%;
+  min-width: 0;
+  margin-top: 14px;
+}
+
+.lesson-section p {
+  width: 100%;
+  max-width: 100%;
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.5;
+}
+
+.lesson-applicable {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.lesson-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+/* ---------- STATUS EXECUTIVO ---------- */
+
+.status-page,
+.executive-status {
+  width: 100%;
+  min-width: 0;
+}
+
+.status-executive-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.status-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.status-card > *,
+.status-card p,
+.status-card strong,
+.status-card span {
+  min-width: 0;
+}
+
+.status-content-grid {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 14px;
+}
+
+.status-update-card,
+.status-alert-list,
+.status-project-list,
+.status-history {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.status-update-card p,
+.status-alert-list p,
+.status-project-list p,
+.status-history p {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.status-alert-list {
+  display: grid;
+  gap: 10px;
+}
+
+.status-alert {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.status-alert > * {
+  min-width: 0;
+}
+
+.status-alert-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.status-alert-content strong,
+.status-alert-content span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.status-project-list {
+  display: grid;
+  gap: 8px;
+}
+
+.status-project {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-project-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-history {
+  overflow-x: auto;
+}
+
+.status-history table {
+  width: 100%;
+  min-width: 760px;
+}
+
+/* ---------- FILTROS PADRONIZADOS ---------- */
+
+.filter-bar,
+.filters,
+.module-filters {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.filter-bar > *,
+.filters > *,
+.module-filters > * {
+  min-width: 0;
+}
+
+.filter-bar input,
+.filter-bar select,
+.filters input,
+.filters select,
+.module-filters input,
+.module-filters select {
+  max-width: 100%;
+}
+
+/* ---------- MODAIS ---------- */
+
+.lesson-modal,
+.status-modal,
+.raid-modal,
+.follow-up-modal,
+.operational-modal {
+  width: 100%;
+  min-width: 0;
+}
+
+.lesson-modal .modal,
+.status-modal .modal,
+.raid-modal .modal,
+.follow-up-modal .modal,
+.operational-modal .modal {
+  width: min(780px, 94vw);
+  max-width: 94vw;
+  max-height: 90vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ---------- RESPONSIVO ---------- */
+
+@media (max-width: 1200px) {
+  .portfolio-grid,
+  .project-grid,
+  .executive-grid,
+  .lessons-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portfolio-kpis,
+  .executive-kpis,
+  .status-executive-grid,
+  .raid-summary,
+  .raid-kpis,
+  .follow-up-summary,
+  .followup-summary,
+  .operational-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .raid-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .portfolio-header,
+  .executive-header,
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .executive-health {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .status-content-grid,
+  .follow-up-grid,
+  .followup-grid,
+  .operational-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .raid-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .portfolio-grid,
+  .project-grid,
+  .executive-grid,
+  .lessons-list,
+  .portfolio-kpis,
+  .executive-kpis,
+  .status-executive-grid,
+  .raid-summary,
+  .raid-kpis,
+  .follow-up-summary,
+  .followup-summary,
+  .operational-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .raid-item-header,
+  .raid-row-header,
+  .raid-card-head,
+  .lesson-card-head {
+    flex-direction: column;
+  }
+
+  .status-project {
+    grid-template-columns: 1fr;
+  }
+
+  .status-project-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .filter-bar,
+  .filters,
+  .module-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-bar > *,
+  .filters > *,
+  .module-filters > * {
+    width: 100%;
+  }
+}
