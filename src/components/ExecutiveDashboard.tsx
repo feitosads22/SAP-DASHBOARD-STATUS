@@ -1,4 +1,3 @@
-```tsx
 import {
   Activity,
   AlertTriangle,
@@ -562,4 +561,3 @@ export default function ExecutiveDashboard() {
     </div>
   );
 }
-```
